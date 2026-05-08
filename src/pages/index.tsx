@@ -1,5 +1,6 @@
 import { createRoute } from '@granite-js/react-native';
-import React, { useState, useCallback } from 'react';
+import { getAnonymousKey } from '@apps-in-toss/framework';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -38,8 +39,17 @@ export const Route = createRoute('/', {
 });
 
 function Page() {
+  const [userKey, setUserKey] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
+
+  useEffect(() => {
+    getAnonymousKey().then(result => {
+      if (result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
+        setUserKey(result.hash);
+      }
+    });
+  }, []);
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
@@ -52,10 +62,10 @@ function Page() {
 
     setSlimes(prev => [
       ...prev,
-      { id: `${Date.now()}-${Math.random()}`, color, size, x, y },
+      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y },
     ]);
     setText('');
-  }, [text]);
+  }, [text, userKey]);
 
   return (
     <KeyboardAvoidingView
