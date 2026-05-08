@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="115" fill="#3182F6"/>
+
+  <!-- Sound waves (left side, coming toward ear) -->
+  <path d="M 90 168 C 58 205 58 308 90 345"
+    fill="none" stroke="white" stroke-width="20" stroke-linecap="round" opacity="0.4"/>
+  <path d="M 130 200 C 108 226 108 288 130 312"
+    fill="none" stroke="white" stroke-width="20" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Ear outer shape -->
+  <path d="
+    M 318 72
+    C 218 72 148 152 148 252
+    C 148 328 182 396 252 416
+    L 272 366
+    C 296 324 318 304 318 268
+    C 318 222 292 194 262 180
+  "
+    fill="none" stroke="white" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Earlobe -->
+  <path d="
+    M 252 416
+    C 235 452 242 478 267 478
+    C 292 478 308 450 308 424
+    L 272 366
+  "
+    fill="none" stroke="white" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Inner ear helix -->
+  <path d="
+    M 262 193
+    C 232 208 220 238 220 266
+    C 220 294 233 320 256 338
+  "
+    fill="none" stroke="white" stroke-width="18" stroke-linecap="round" opacity="0.85"/>
+</svg>
