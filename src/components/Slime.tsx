@@ -1,5 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Animated, Pressable, View, StyleSheet, useColorScheme } from 'react-native';
+
+type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
 
 interface SlimeProps {
   color: string;
@@ -8,11 +10,44 @@ interface SlimeProps {
   y: number;
 }
 
+const EXPRESSIONS: Expression[] = ['happy', 'sad', 'surprised', 'blank', 'angry'];
+
 export function Slime({ color, size, x, y }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
+
+  const expression = useMemo<Expression>(
+    () => EXPRESSIONS[Math.floor(Math.random() * EXPRESSIONS.length)] as Expression,
+    [],
+  );
+
+  const borderRadii = useMemo(
+    () => ({
+      borderTopLeftRadius: size * (0.5 + Math.random() * 0.3),
+      borderTopRightRadius: size * (0.3 + Math.random() * 0.3),
+      borderBottomLeftRadius: size * (0.35 + Math.random() * 0.3),
+      borderBottomRightRadius: size * (0.5 + Math.random() * 0.3),
+    }),
+    [size],
+  );
+
+  const eyeConfig = useMemo(
+    () => ({
+      left: {
+        top: size * (0.2 + Math.random() * 0.08),
+        left: size * (0.16 + Math.random() * 0.06),
+        size: size * (0.1 + Math.random() * 0.04),
+      },
+      right: {
+        top: size * (0.18 + Math.random() * 0.08),
+        left: size * (0.48 + Math.random() * 0.06),
+        size: size * (0.1 + Math.random() * 0.04),
+      },
+    }),
+    [size],
+  );
 
   useEffect(() => {
     Animated.sequence([
@@ -47,6 +82,121 @@ export function Slime({ color, size, x, y }: SlimeProps) {
     ]).start();
   };
 
+  const renderEye = (cfg: { top: number; left: number; size: number }) => {
+    const pupilSize = cfg.size * 0.5;
+    return (
+      <View
+        key={`${cfg.left}`}
+        style={{
+          position: 'absolute',
+          width: cfg.size,
+          height: cfg.size * 1.15,
+          backgroundColor: 'white',
+          borderRadius: cfg.size,
+          top: cfg.top,
+          left: cfg.left,
+        }}
+      >
+        <View
+          style={{
+            position: 'absolute',
+            width: pupilSize,
+            height: pupilSize,
+            backgroundColor: '#111',
+            borderRadius: pupilSize,
+            top: cfg.size * 0.3,
+            left: cfg.size * 0.22,
+          }}
+        />
+      </View>
+    );
+  };
+
+  const renderMouth = () => {
+    const mouthY = size * 0.52;
+    const cx = size * 0.5;
+
+    switch (expression) {
+      case 'happy':
+        return (
+          <View
+            style={{
+              position: 'absolute',
+              width: size * 0.32,
+              height: size * 0.16,
+              borderBottomLeftRadius: size * 0.16,
+              borderBottomRightRadius: size * 0.16,
+              borderWidth: size * 0.028,
+              borderTopWidth: 0,
+              borderColor: 'rgba(0,0,0,0.35)',
+              top: mouthY,
+              left: cx - size * 0.16,
+            }}
+          />
+        );
+      case 'sad':
+        return (
+          <View
+            style={{
+              position: 'absolute',
+              width: size * 0.28,
+              height: size * 0.14,
+              borderTopLeftRadius: size * 0.14,
+              borderTopRightRadius: size * 0.14,
+              borderWidth: size * 0.028,
+              borderBottomWidth: 0,
+              borderColor: 'rgba(0,0,0,0.35)',
+              top: mouthY + size * 0.06,
+              left: cx - size * 0.14,
+            }}
+          />
+        );
+      case 'surprised':
+        return (
+          <View
+            style={{
+              position: 'absolute',
+              width: size * 0.16,
+              height: size * 0.18,
+              borderRadius: size * 0.09,
+              backgroundColor: 'rgba(0,0,0,0.3)',
+              top: mouthY,
+              left: cx - size * 0.08,
+            }}
+          />
+        );
+      case 'angry':
+        return (
+          <View
+            style={{
+              position: 'absolute',
+              width: size * 0.26,
+              height: size * 0.028,
+              backgroundColor: 'rgba(0,0,0,0.38)',
+              borderRadius: 2,
+              top: mouthY + size * 0.04,
+              left: cx - size * 0.13,
+              transform: [{ rotate: '8deg' }],
+            }}
+          />
+        );
+      default:
+        return (
+          <View
+            style={{
+              position: 'absolute',
+              width: size * 0.2,
+              height: size * 0.025,
+              backgroundColor: 'rgba(0,0,0,0.28)',
+              borderRadius: 2,
+              top: mouthY + size * 0.04,
+              left: cx - size * 0.1,
+            }}
+          />
+        );
+    }
+  };
+
   return (
     <Pressable
       style={[styles.container, { left: x, top: y }]}
@@ -60,10 +210,7 @@ export function Slime({ color, size, x, y }: SlimeProps) {
             width: size,
             height: size * 0.9,
             backgroundColor: color,
-            borderTopLeftRadius: size * 0.65,
-            borderTopRightRadius: size * 0.45,
-            borderBottomLeftRadius: size * 0.5,
-            borderBottomRightRadius: size * 0.7,
+            ...borderRadii,
             shadowOpacity,
             transform: [{ scaleX }, { scaleY }],
           },
@@ -72,27 +219,18 @@ export function Slime({ color, size, x, y }: SlimeProps) {
         <View
           style={{
             position: 'absolute',
-            top: size * 0.12,
-            left: size * 0.18,
+            top: size * 0.1,
+            left: size * 0.15,
             width: size * 0.28,
-            height: size * 0.14,
-            backgroundColor: 'rgba(255, 255, 255, 0.35)',
+            height: size * 0.13,
+            backgroundColor: 'rgba(255,255,255,0.35)',
             borderRadius: size * 0.07,
             transform: [{ rotate: '-15deg' }],
           }}
         />
-        <View
-          style={{
-            position: 'absolute',
-            top: size * 0.24,
-            left: size * 0.26,
-            width: size * 0.12,
-            height: size * 0.06,
-            backgroundColor: 'rgba(255, 255, 255, 0.18)',
-            borderRadius: size * 0.03,
-            transform: [{ rotate: '-10deg' }],
-          }}
-        />
+        {renderEye(eyeConfig.left)}
+        {renderEye(eyeConfig.right)}
+        {renderMouth()}
       </Animated.View>
     </Pressable>
   );
