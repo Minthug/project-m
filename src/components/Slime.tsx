@@ -246,16 +246,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
-      onPanResponderGrant: (evt) => {
-        const touches = evt.nativeEvent.touches;
-        if (touches.length >= 2) {
-          initialPinchDist.current = getPinchDist(touches);
-          if (longPressTimer.current) clearTimeout(longPressTimer.current);
-          return;
-        }
-
+      onPanResponderGrant: () => {
         isDragging.current = false;
-        initialPinchDist.current = null;
         setIsActive(true);
 
         Animated.parallel([
@@ -273,26 +265,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
         pan.setValue({ x: 0, y: 0 });
       },
 
-      onPanResponderMove: (evt, gs) => {
-        const touches = evt.nativeEvent.touches;
-
-        // 두 손가락 벌리기 → 자르기
-        if (touches.length >= 2) {
-          if (longPressTimer.current) clearTimeout(longPressTimer.current);
-          const dist = getPinchDist(touches);
-          if (dist !== null && initialPinchDist.current !== null) {
-            if (dist - initialPinchDist.current > 35) {
-              initialPinchDist.current = null;
-              triggerSplit();
-            }
-          } else if (dist !== null) {
-            initialPinchDist.current = dist;
-          }
-          return;
-        }
-
-        initialPinchDist.current = null;
-
+      onPanResponderMove: (_, gs) => {
         if (!isDragging.current && (Math.abs(gs.dx) > 6 || Math.abs(gs.dy) > 6)) {
           isDragging.current = true;
           if (longPressTimer.current) clearTimeout(longPressTimer.current);
@@ -419,6 +392,27 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           transform: [{ translateX: pan.x }, { translateY: pan.y }],
         },
       ]}
+      onTouchStart={(evt) => {
+        const t = evt.nativeEvent.touches;
+        if (t.length >= 2) {
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+          const dx = t[1].pageX - t[0].pageX;
+          const dy = t[1].pageY - t[0].pageY;
+          initialPinchDist.current = Math.sqrt(dx * dx + dy * dy);
+        }
+      }}
+      onTouchMove={(evt) => {
+        const t = evt.nativeEvent.touches;
+        if (t.length >= 2 && initialPinchDist.current !== null) {
+          const dx = t[1].pageX - t[0].pageX;
+          const dy = t[1].pageY - t[0].pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist - initialPinchDist.current > 30) {
+            initialPinchDist.current = null;
+            triggerSplit();
+          }
+        }
+      }}
       {...panResponder.panHandlers}
     >
       {/* 파티클 레이어 */}
