@@ -52,12 +52,12 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
   const eyeConfig = useMemo(
     () => ({
       left: {
-        top: size * (0.2 + Math.random() * 0.08),
+        top: size * (0.26 + Math.random() * 0.06),
         left: size * (0.16 + Math.random() * 0.06),
         size: size * (0.1 + Math.random() * 0.04),
       },
       right: {
-        top: size * (0.18 + Math.random() * 0.08),
+        top: size * (0.24 + Math.random() * 0.06),
         left: size * (0.48 + Math.random() * 0.06),
         size: size * (0.1 + Math.random() * 0.04),
       },
@@ -102,13 +102,17 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
 
   const renderEye = (cfg: { top: number; left: number; size: number }) => {
     const pupilSize = cfg.size * 0.5;
+    // 화남은 눈을 약간 찡그리게
+    const eyeHeight = expression === 'angry' ? cfg.size * 0.75 : cfg.size * 1.15;
+    // 놀람은 눈을 크게
+    const eyeWidth = expression === 'surprised' ? cfg.size * 1.2 : cfg.size;
     return (
       <View
         key={`${cfg.left}`}
         style={{
           position: 'absolute',
-          width: cfg.size,
-          height: cfg.size * 1.15,
+          width: eyeWidth,
+          height: eyeHeight,
           backgroundColor: 'white',
           borderRadius: cfg.size,
           top: cfg.top,
@@ -122,81 +126,187 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
             height: pupilSize,
             backgroundColor: '#111',
             borderRadius: pupilSize,
-            top: cfg.size * 0.3,
-            left: cfg.size * 0.22,
+            top: eyeHeight * 0.25,
+            left: eyeWidth * 0.22,
           }}
         />
       </View>
     );
   };
 
+  const renderEyebrows = () => {
+    const bw = size * 0.15;
+    const bh = size * 0.032;
+    const lx = eyeConfig.left.left - size * 0.01;
+    const rx = eyeConfig.right.left - size * 0.01;
+    const by = eyeConfig.left.top - size * 0.1;
+
+    const base = {
+      position: 'absolute' as const,
+      width: bw,
+      height: bh,
+      borderRadius: 3,
+    };
+
+    switch (expression) {
+      case 'angry':
+        // \ / 형태 — 안쪽이 내려와 찡그린 모양
+        return (
+          <>
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: lx, transform: [{ rotate: '25deg' }] }} />
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: rx, transform: [{ rotate: '-25deg' }] }} />
+          </>
+        );
+      case 'sad':
+        // / \ 형태 — 안쪽이 올라가는 처진 눈썹
+        return (
+          <>
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: lx, transform: [{ rotate: '-20deg' }] }} />
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: rx, transform: [{ rotate: '20deg' }] }} />
+          </>
+        );
+      case 'surprised':
+        // 높이 올라간 눈썹
+        return (
+          <>
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: lx }} />
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: rx }} />
+          </>
+        );
+      case 'happy':
+        // 살짝 올라간 눈썹
+        return (
+          <>
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: lx, transform: [{ rotate: '-8deg' }] }} />
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: rx, transform: [{ rotate: '8deg' }] }} />
+          </>
+        );
+      default:
+        // 평평한 눈썹
+        return (
+          <>
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: lx }} />
+            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: rx }} />
+          </>
+        );
+    }
+  };
+
   const renderMouth = () => {
-    const mouthY = size * 0.52;
+    const mouthY = size * 0.58;
     const cx = size * 0.5;
 
     switch (expression) {
       case 'happy':
+        // 크고 둥근 미소
         return (
           <View
             style={{
               position: 'absolute',
-              width: size * 0.32,
-              height: size * 0.16,
-              borderBottomLeftRadius: size * 0.16,
-              borderBottomRightRadius: size * 0.16,
-              borderWidth: size * 0.028,
+              width: size * 0.38,
+              height: size * 0.2,
+              borderBottomLeftRadius: size * 0.2,
+              borderBottomRightRadius: size * 0.2,
+              borderWidth: size * 0.03,
               borderTopWidth: 0,
-              borderColor: 'rgba(0,0,0,0.35)',
+              borderColor: 'rgba(0,0,0,0.4)',
               top: mouthY,
-              left: cx - size * 0.16,
+              left: cx - size * 0.19,
             }}
           />
         );
       case 'sad':
+        // 아래로 처진 입 + 눈물
         return (
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.28,
-              height: size * 0.14,
-              borderTopLeftRadius: size * 0.14,
-              borderTopRightRadius: size * 0.14,
-              borderWidth: size * 0.028,
-              borderBottomWidth: 0,
-              borderColor: 'rgba(0,0,0,0.35)',
-              top: mouthY + size * 0.06,
-              left: cx - size * 0.14,
-            }}
-          />
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.3,
+                height: size * 0.16,
+                borderTopLeftRadius: size * 0.16,
+                borderTopRightRadius: size * 0.16,
+                borderWidth: size * 0.03,
+                borderBottomWidth: 0,
+                borderColor: 'rgba(0,0,0,0.4)',
+                top: mouthY + size * 0.04,
+                left: cx - size * 0.15,
+              }}
+            />
+            {/* 눈물 */}
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.055,
+                height: size * 0.08,
+                backgroundColor: 'rgba(100,180,255,0.85)',
+                borderBottomLeftRadius: size * 0.04,
+                borderBottomRightRadius: size * 0.04,
+                borderTopLeftRadius: size * 0.02,
+                borderTopRightRadius: size * 0.02,
+                top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01,
+                left: eyeConfig.left.left + eyeConfig.left.size * 0.2,
+              }}
+            />
+          </>
         );
       case 'surprised':
+        // 크게 벌린 O 입
         return (
           <View
             style={{
               position: 'absolute',
-              width: size * 0.16,
-              height: size * 0.18,
-              borderRadius: size * 0.09,
-              backgroundColor: 'rgba(0,0,0,0.3)',
+              width: size * 0.22,
+              height: size * 0.24,
+              borderRadius: size * 0.12,
+              backgroundColor: 'rgba(0,0,0,0.35)',
               top: mouthY,
-              left: cx - size * 0.08,
+              left: cx - size * 0.11,
             }}
           />
         );
       case 'angry':
+        // 짧고 굳은 선 + 양쪽 끝이 내려감
         return (
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.26,
-              height: size * 0.028,
-              backgroundColor: 'rgba(0,0,0,0.38)',
-              borderRadius: 2,
-              top: mouthY + size * 0.04,
-              left: cx - size * 0.13,
-              transform: [{ rotate: '8deg' }],
-            }}
-          />
+          <>
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.28,
+                height: size * 0.03,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                borderRadius: 2,
+                top: mouthY + size * 0.02,
+                left: cx - size * 0.14,
+              }}
+            />
+            {/* 왼쪽 끝 내려가는 선 */}
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.08,
+                height: size * 0.03,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                borderRadius: 2,
+                top: mouthY + size * 0.03,
+                left: cx - size * 0.2,
+                transform: [{ rotate: '40deg' }],
+              }}
+            />
+            {/* 오른쪽 끝 내려가는 선 */}
+            <View
+              style={{
+                position: 'absolute',
+                width: size * 0.08,
+                height: size * 0.03,
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                borderRadius: 2,
+                top: mouthY + size * 0.03,
+                left: cx + size * 0.12,
+                transform: [{ rotate: '-40deg' }],
+              }}
+            />
+          </>
         );
       default:
         return (
@@ -207,7 +317,7 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
               height: size * 0.025,
               backgroundColor: 'rgba(0,0,0,0.28)',
               borderRadius: 2,
-              top: mouthY + size * 0.04,
+              top: mouthY + size * 0.02,
               left: cx - size * 0.1,
             }}
           />
@@ -246,6 +356,7 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
             transform: [{ rotate: '-15deg' }],
           }}
         />
+        {renderEyebrows()}
         {renderEye(eyeConfig.left)}
         {renderEye(eyeConfig.right)}
         {renderMouth()}
