@@ -12,6 +12,7 @@ interface SlimeProps {
   createdAt?: number;
   onDelete?: () => void;
   onMove?: (x: number, y: number) => void;
+  onSplit?: (x: number, y: number, size: number) => void;
 }
 
 const KEYWORDS: Record<Expression, string[]> = {
@@ -43,7 +44,7 @@ function computeOpacity(createdAt?: number): number {
   return Math.max(0.35, 1 - progress * 0.65);
 }
 
-export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: SlimeProps) {
+export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, onSplit }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
 
@@ -55,8 +56,10 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
 
   const isDragging = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialPinchDist = useRef<number | null>(null);
   const onDeleteRef = useRef(onDelete);
   const onMoveRef = useRef(onMove);
+  const onSplitRef = useRef(onSplit);
   const [isActive, setIsActive] = useState(false);
   const [showParticles, setShowParticles] = useState(false);
 
@@ -90,6 +93,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
 
   useEffect(() => { onDeleteRef.current = onDelete; }, [onDelete]);
   useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
+  useEffect(() => { onSplitRef.current = onSplit; }, [onSplit]);
 
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
@@ -213,13 +217,45 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     });
   };
 
+  const getPinchDist = (touches: any[]) => {
+    if (touches.length < 2) return null;
+    const dx = touches[1].pageX - touches[0].pageX;
+    const dy = touches[1].pageY - touches[0].pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const triggerSplit = () => {
+    if (size < 70) return;
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(scaleX, { toValue: 0.2, duration: 120, useNativeDriver: true }),
+        Animated.timing(scaleY, { toValue: 1.4, duration: 120, useNativeDriver: true }),
+      ]),
+      Animated.timing(popOpacity, { toValue: 0, duration: 100, useNativeDriver: true }),
+    ]).start(() =>
+      onSplitRef.current?.(
+        x + (pan.x as any)._value,
+        y + (pan.y as any)._value,
+        size,
+      ),
+    );
+  };
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
 
-      onPanResponderGrant: () => {
+      onPanResponderGrant: (evt) => {
+        const touches = evt.nativeEvent.touches;
+        if (touches.length >= 2) {
+          initialPinchDist.current = getPinchDist(touches);
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+          return;
+        }
+
         isDragging.current = false;
+        initialPinchDist.current = null;
         setIsActive(true);
 
         Animated.parallel([
@@ -237,7 +273,26 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
         pan.setValue({ x: 0, y: 0 });
       },
 
-      onPanResponderMove: (_, gs) => {
+      onPanResponderMove: (evt, gs) => {
+        const touches = evt.nativeEvent.touches;
+
+        // 두 손가락 벌리기 → 자르기
+        if (touches.length >= 2) {
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+          const dist = getPinchDist(touches);
+          if (dist !== null && initialPinchDist.current !== null) {
+            if (dist - initialPinchDist.current > 35) {
+              initialPinchDist.current = null;
+              triggerSplit();
+            }
+          } else if (dist !== null) {
+            initialPinchDist.current = dist;
+          }
+          return;
+        }
+
+        initialPinchDist.current = null;
+
         if (!isDragging.current && (Math.abs(gs.dx) > 6 || Math.abs(gs.dy) > 6)) {
           isDragging.current = true;
           if (longPressTimer.current) clearTimeout(longPressTimer.current);

@@ -169,6 +169,20 @@ function Page() {
     });
   }, []);
 
+  const handleSplit = useCallback((id: string, sx: number, sy: number, origSize: number) => {
+    const newSize = Math.max(50, Math.floor(origSize * 0.58));
+    const offset = newSize * 0.65;
+    setSlimes(prev => {
+      const original = prev.find(s => s.id === id);
+      if (!original) return prev;
+      return [
+        ...prev.filter(s => s.id !== id),
+        { ...original, id: `split-L-${Date.now()}`, size: newSize, x: sx - offset, y: sy, createdAt: Date.now() },
+        { ...original, id: `split-R-${Date.now()}`, size: newSize, x: sx + offset, y: sy, createdAt: Date.now() },
+      ];
+    });
+  }, []);
+
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -218,6 +232,7 @@ function Page() {
               {...slime}
               onDelete={() => handleDelete(slime.id)}
               onMove={(nx, ny) => handleMove(slime.id, nx, ny)}
+              onSplit={(sx, sy, sz) => handleSplit(slime.id, sx, sy, sz)}
             />
           ))
         )}
