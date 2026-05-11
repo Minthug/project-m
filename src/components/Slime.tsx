@@ -170,13 +170,14 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     // 파티클 각자 흩어지기 (몸체 떨기 시작과 동시에)
     const particleAnimations = particleAnims.map((p, i) => {
       const { dx, dy, duration, delay } = particleProps[i];
+      const slowDuration = duration * 2.2;
       return Animated.sequence([
-        Animated.delay(delay),
+        Animated.delay(delay * 1.5),
         Animated.parallel([
-          Animated.timing(p.x, { toValue: dx, duration, useNativeDriver: true }),
-          Animated.timing(p.y, { toValue: dy, duration, useNativeDriver: true }),
-          Animated.timing(p.opacity, { toValue: 0, duration, useNativeDriver: true }),
-          Animated.timing(p.scale, { toValue: 0, duration, useNativeDriver: true }),
+          Animated.timing(p.x, { toValue: dx * 1.4, duration: slowDuration, useNativeDriver: true }),
+          Animated.timing(p.y, { toValue: dy * 1.4, duration: slowDuration, useNativeDriver: true }),
+          Animated.timing(p.opacity, { toValue: 0, duration: slowDuration, useNativeDriver: true }),
+          Animated.timing(p.scale, { toValue: 0, duration: slowDuration, useNativeDriver: true }),
         ]),
       ]);
     });
@@ -187,25 +188,25 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     // 2단계 (300ms 후): 납작해지며 부스러짐
     Animated.parallel([shake, scaleWobble]).start(() => {
       Animated.parallel([
-        Animated.spring(scaleX, { toValue: 1.6, useNativeDriver: true, tension: 400, friction: 6 }),
-        Animated.spring(scaleY, { toValue: 0.18, useNativeDriver: true, tension: 400, friction: 6 }),
+        Animated.spring(scaleX, { toValue: 1.6, useNativeDriver: true, tension: 200, friction: 8 }),
+        Animated.spring(scaleY, { toValue: 0.18, useNativeDriver: true, tension: 200, friction: 8 }),
       ]).start(() => {
         // 3단계: 먼지처럼 단계적 소멸
         Animated.sequence([
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 1.1, duration: 55, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0.5, duration: 55, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0.6, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 1.1, duration: 120, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.5, duration: 120, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.6, duration: 120, useNativeDriver: true }),
           ]),
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 0.6, duration: 50, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0.3, duration: 50, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0.3, duration: 50, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 0.6, duration: 110, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.3, duration: 110, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.3, duration: 110, useNativeDriver: true }),
           ]),
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 0, duration: 55, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0, duration: 55, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 0, duration: 130, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0, duration: 130, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0, duration: 130, useNativeDriver: true }),
           ]),
         ]).start(() => onDeleteRef.current?.());
       });
