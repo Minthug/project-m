@@ -66,6 +66,7 @@ interface SlimeData {
   x: number;
   y: number;
   text: string;
+  createdAt: number;
 }
 
 export const Route = createRoute('/', {
@@ -133,6 +134,41 @@ function Page() {
     Storage.setItem('slimes', JSON.stringify(slimes));
   }, [slimes]);
 
+  const handleDelete = useCallback((id: string) => {
+    setSlimes(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const handleMove = useCallback((id: string, newX: number, newY: number) => {
+    setSlimes(prev => {
+      const moved = prev.find(s => s.id === id);
+      if (!moved) return prev;
+
+      const target = prev.find(s => {
+        if (s.id === id) return false;
+        const dist = Math.sqrt(Math.pow(newX - s.x, 2) + Math.pow(newY - s.y, 2));
+        return dist < (moved.size + s.size) * 0.38;
+      });
+
+      if (target) {
+        const mergedSize = Math.min(moved.size + target.size * 0.55, 190);
+        return [
+          ...prev.filter(s => s.id !== id && s.id !== target.id),
+          {
+            id: `merged-${Date.now()}`,
+            color: target.size >= moved.size ? target.color : moved.color,
+            size: mergedSize,
+            x: (newX + target.x) / 2,
+            y: (newY + target.y) / 2,
+            text: target.text || moved.text || '',
+            createdAt: Date.now(),
+          },
+        ];
+      }
+
+      return prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s);
+    });
+  }, []);
+
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -144,7 +180,7 @@ function Page() {
 
     setSlimes(prev => [
       ...prev,
-      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed },
+      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed, createdAt: Date.now() },
     ]);
     setText('');
     Keyboard.dismiss();
@@ -176,7 +212,14 @@ function Page() {
             </Text>
           </View>
         ) : (
-          slimes.map(slime => <Slime key={slime.id} {...slime} />)
+          slimes.map(slime => (
+            <Slime
+              key={slime.id}
+              {...slime}
+              onDelete={() => handleDelete(slime.id)}
+              onMove={(nx, ny) => handleMove(slime.id, nx, ny)}
+            />
+          ))
         )}
       </View>
       </TouchableWithoutFeedback>

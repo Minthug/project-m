@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { Animated, Pressable, View, StyleSheet, useColorScheme } from 'react-native';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
+import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
 
 type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
 
@@ -9,6 +9,9 @@ interface SlimeProps {
   x: number;
   y: number;
   text?: string;
+  createdAt?: number;
+  onDelete?: () => void;
+  onMove?: (x: number, y: number) => void;
 }
 
 const KEYWORDS: Record<Expression, string[]> = {
@@ -28,16 +31,47 @@ function detectExpression(text: string): Expression {
   return 'blank';
 }
 
-export function Slime({ color, size, x, y, text }: SlimeProps) {
+function computeOpacity(createdAt?: number): number {
+  if (!createdAt) return 1;
+  const FADE_AFTER = 2 * 60 * 60 * 1000;
+  const FULL_FADE = 24 * 60 * 60 * 1000;
+  const age = Date.now() - createdAt;
+  if (age < FADE_AFTER) return 1;
+  const progress = Math.min((age - FADE_AFTER) / (FULL_FADE - FADE_AFTER), 1);
+  return Math.max(0.35, 1 - progress * 0.65);
+}
+
+export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
+
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
+  const popOpacity = useRef(new Animated.Value(1)).current;
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+
+  const isDragging = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onDeleteRef = useRef(onDelete);
+  const onMoveRef = useRef(onMove);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => { onDeleteRef.current = onDelete; }, [onDelete]);
+  useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
+
+  // 부모에서 x/y가 갱신되면(merge 후) pan 리셋
+  useEffect(() => {
+    pan.setValue({ x: 0, y: 0 });
+    pan.setOffset({ x: 0, y: 0 });
+    pan.flattenOffset();
+  }, [x, y]);
 
   const expression = useMemo<Expression>(
     () => (text ? detectExpression(text) : 'blank'),
     [text],
   );
+
+  const isNegative = expression === 'angry' || expression === 'sad';
 
   const borderRadii = useMemo(
     () => ({
@@ -65,6 +99,88 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
     [size],
   );
 
+  const ageOpacity = useMemo(() => computeOpacity(createdAt), [createdAt]);
+
+  const triggerPop = () => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(scaleX, { toValue: 1.7, useNativeDriver: true, tension: 300, friction: 5 }),
+        Animated.spring(scaleY, { toValue: 1.7, useNativeDriver: true, tension: 300, friction: 5 }),
+      ]),
+      Animated.timing(popOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
+    ]).start(() => onDeleteRef.current?.());
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+
+      onPanResponderGrant: () => {
+        isDragging.current = false;
+        setIsActive(true);
+
+        Animated.parallel([
+          Animated.spring(scaleX, { toValue: 1.2, useNativeDriver: true, tension: 400, friction: 8 }),
+          Animated.spring(scaleY, { toValue: 0.78, useNativeDriver: true, tension: 400, friction: 8 }),
+        ]).start();
+
+        if (isNegative) {
+          longPressTimer.current = setTimeout(() => {
+            if (!isDragging.current) triggerPop();
+          }, 600);
+        }
+
+        pan.setOffset({ x: (pan.x as any)._value, y: (pan.y as any)._value });
+        pan.setValue({ x: 0, y: 0 });
+      },
+
+      onPanResponderMove: (_, gs) => {
+        if (!isDragging.current && (Math.abs(gs.dx) > 6 || Math.abs(gs.dy) > 6)) {
+          isDragging.current = true;
+          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+          Animated.parallel([
+            Animated.spring(scaleX, { toValue: 1.05, useNativeDriver: true }),
+            Animated.spring(scaleY, { toValue: 0.95, useNativeDriver: true }),
+          ]).start();
+        }
+        pan.x.setValue(gs.dx);
+        pan.y.setValue(gs.dy);
+      },
+
+      onPanResponderRelease: (_, gs) => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+        setIsActive(false);
+        pan.flattenOffset();
+
+        if (isDragging.current) {
+          Animated.sequence([
+            Animated.parallel([
+              Animated.spring(scaleX, { toValue: 1.15, useNativeDriver: true, tension: 200, friction: 6 }),
+              Animated.spring(scaleY, { toValue: 0.85, useNativeDriver: true, tension: 200, friction: 6 }),
+            ]),
+            Animated.parallel([
+              Animated.spring(scaleX, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
+              Animated.spring(scaleY, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
+            ]),
+          ]).start();
+          onMoveRef.current?.(x + (pan.x as any)._value, y + (pan.y as any)._value);
+        } else {
+          Animated.sequence([
+            Animated.parallel([
+              Animated.spring(scaleX, { toValue: 0.9, useNativeDriver: true, tension: 200, friction: 6 }),
+              Animated.spring(scaleY, { toValue: 1.1, useNativeDriver: true, tension: 200, friction: 6 }),
+            ]),
+            Animated.parallel([
+              Animated.spring(scaleX, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
+              Animated.spring(scaleY, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
+            ]),
+          ]).start();
+        }
+      },
+    }),
+  ).current;
+
   useEffect(() => {
     const anim = Animated.sequence([
       Animated.parallel([
@@ -80,31 +196,9 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
     return () => anim.stop();
   }, []);
 
-  const handlePressIn = () => {
-    Animated.parallel([
-      Animated.spring(scaleX, { toValue: 1.35, useNativeDriver: true, tension: 400, friction: 10 }),
-      Animated.spring(scaleY, { toValue: 0.65, useNativeDriver: true, tension: 400, friction: 10 }),
-    ]).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(scaleX, { toValue: 0.9, useNativeDriver: true, tension: 200, friction: 6 }),
-        Animated.spring(scaleY, { toValue: 1.1, useNativeDriver: true, tension: 200, friction: 6 }),
-      ]),
-      Animated.parallel([
-        Animated.spring(scaleX, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
-        Animated.spring(scaleY, { toValue: 1, useNativeDriver: true, tension: 250, friction: 8 }),
-      ]),
-    ]).start();
-  };
-
   const renderEye = (cfg: { top: number; left: number; size: number }) => {
     const pupilSize = cfg.size * 0.5;
-    // 화남은 눈을 약간 찡그리게
     const eyeHeight = expression === 'angry' ? cfg.size * 0.75 : cfg.size * 1.15;
-    // 놀람은 눈을 크게
     const eyeWidth = expression === 'surprised' ? cfg.size * 1.2 : cfg.size;
     return (
       <View
@@ -140,17 +234,10 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
     const lx = eyeConfig.left.left - size * 0.01;
     const rx = eyeConfig.right.left - size * 0.01;
     const by = eyeConfig.left.top - size * 0.1;
-
-    const base = {
-      position: 'absolute' as const,
-      width: bw,
-      height: bh,
-      borderRadius: 3,
-    };
+    const base = { position: 'absolute' as const, width: bw, height: bh, borderRadius: 3 };
 
     switch (expression) {
       case 'angry':
-        // \ / 형태 — 안쪽이 내려와 찡그린 모양
         return (
           <>
             <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: lx, transform: [{ rotate: '25deg' }] }} />
@@ -158,7 +245,6 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
           </>
         );
       case 'sad':
-        // / \ 형태 — 안쪽이 올라가는 처진 눈썹
         return (
           <>
             <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: lx, transform: [{ rotate: '-20deg' }] }} />
@@ -166,7 +252,6 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
           </>
         );
       case 'surprised':
-        // 높이 올라간 눈썹
         return (
           <>
             <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: lx }} />
@@ -174,7 +259,6 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
           </>
         );
       case 'happy':
-        // 살짝 올라간 눈썹
         return (
           <>
             <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: lx, transform: [{ rotate: '-8deg' }] }} />
@@ -182,7 +266,6 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
           </>
         );
       default:
-        // 평평한 눈썹
         return (
           <>
             <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: lx }} />
@@ -195,173 +278,70 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
   const renderMouth = () => {
     const mouthY = size * 0.58;
     const cx = size * 0.5;
-
     switch (expression) {
       case 'happy':
-        // 크고 둥근 미소
         return (
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.38,
-              height: size * 0.2,
-              borderBottomLeftRadius: size * 0.2,
-              borderBottomRightRadius: size * 0.2,
-              borderWidth: size * 0.03,
-              borderTopWidth: 0,
-              borderColor: 'rgba(0,0,0,0.4)',
-              top: mouthY,
-              left: cx - size * 0.19,
-            }}
-          />
+          <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: cx - size * 0.19 }} />
         );
       case 'sad':
-        // 아래로 처진 입 + 눈물
         return (
           <>
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.3,
-                height: size * 0.16,
-                borderTopLeftRadius: size * 0.16,
-                borderTopRightRadius: size * 0.16,
-                borderWidth: size * 0.03,
-                borderBottomWidth: 0,
-                borderColor: 'rgba(0,0,0,0.4)',
-                top: mouthY + size * 0.04,
-                left: cx - size * 0.15,
-              }}
-            />
-            {/* 눈물 */}
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.055,
-                height: size * 0.08,
-                backgroundColor: 'rgba(100,180,255,0.85)',
-                borderBottomLeftRadius: size * 0.04,
-                borderBottomRightRadius: size * 0.04,
-                borderTopLeftRadius: size * 0.02,
-                borderTopRightRadius: size * 0.02,
-                top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01,
-                left: eyeConfig.left.left + eyeConfig.left.size * 0.2,
-              }}
-            />
+            <View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: cx - size * 0.15 }} />
+            <View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} />
           </>
         );
       case 'surprised':
-        // 크게 벌린 O 입
         return (
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.22,
-              height: size * 0.24,
-              borderRadius: size * 0.12,
-              backgroundColor: 'rgba(0,0,0,0.35)',
-              top: mouthY,
-              left: cx - size * 0.11,
-            }}
-          />
+          <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: cx - size * 0.11 }} />
         );
       case 'angry':
-        // 짧고 굳은 선 + 양쪽 끝이 내려감
         return (
           <>
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.28,
-                height: size * 0.03,
-                backgroundColor: 'rgba(0,0,0,0.45)',
-                borderRadius: 2,
-                top: mouthY + size * 0.02,
-                left: cx - size * 0.14,
-              }}
-            />
-            {/* 왼쪽 끝 내려가는 선 */}
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.08,
-                height: size * 0.03,
-                backgroundColor: 'rgba(0,0,0,0.45)',
-                borderRadius: 2,
-                top: mouthY + size * 0.03,
-                left: cx - size * 0.2,
-                transform: [{ rotate: '40deg' }],
-              }}
-            />
-            {/* 오른쪽 끝 내려가는 선 */}
-            <View
-              style={{
-                position: 'absolute',
-                width: size * 0.08,
-                height: size * 0.03,
-                backgroundColor: 'rgba(0,0,0,0.45)',
-                borderRadius: 2,
-                top: mouthY + size * 0.03,
-                left: cx + size * 0.12,
-                transform: [{ rotate: '-40deg' }],
-              }}
-            />
+            <View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.14 }} />
+            <View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx - size * 0.2, transform: [{ rotate: '40deg' }] }} />
+            <View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx + size * 0.12, transform: [{ rotate: '-40deg' }] }} />
           </>
         );
       default:
         return (
-          <View
-            style={{
-              position: 'absolute',
-              width: size * 0.2,
-              height: size * 0.025,
-              backgroundColor: 'rgba(0,0,0,0.28)',
-              borderRadius: 2,
-              top: mouthY + size * 0.02,
-              left: cx - size * 0.1,
-            }}
-          />
+          <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.1 }} />
         );
     }
   };
 
   return (
-    <Pressable
-      style={[styles.container, { left: x, top: y }]}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          left: x,
+          top: y,
+          zIndex: isActive ? 100 : 1,
+          opacity: popOpacity,
+          transform: [{ translateX: pan.x }, { translateY: pan.y }],
+        },
+      ]}
+      {...panResponder.panHandlers}
     >
       <Animated.View
-        style={[
-          styles.blob,
-          {
-            width: size,
-            height: size * 0.9,
-            backgroundColor: color,
-            ...borderRadii,
-            shadowOpacity,
-            transform: [{ scaleX }, { scaleY }],
-          },
-        ]}
+        style={{
+          opacity: ageOpacity,
+          ...styles.blob,
+          width: size,
+          height: size * 0.9,
+          backgroundColor: color,
+          ...borderRadii,
+          shadowOpacity,
+          transform: [{ scaleX }, { scaleY }],
+        }}
       >
-        <View
-          style={{
-            position: 'absolute',
-            top: size * 0.1,
-            left: size * 0.15,
-            width: size * 0.28,
-            height: size * 0.13,
-            backgroundColor: 'rgba(255,255,255,0.35)',
-            borderRadius: size * 0.07,
-            transform: [{ rotate: '-15deg' }],
-          }}
-        />
+        <View style={{ position: 'absolute', top: size * 0.1, left: size * 0.15, width: size * 0.28, height: size * 0.13, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: size * 0.07, transform: [{ rotate: '-15deg' }] }} />
         {renderEyebrows()}
         {renderEye(eyeConfig.left)}
         {renderEye(eyeConfig.right)}
         {renderMouth()}
       </Animated.View>
-    </Pressable>
+    </Animated.View>
   );
 }
 
