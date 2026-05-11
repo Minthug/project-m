@@ -12,6 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Slime } from '../components/Slime';
 
@@ -142,6 +144,7 @@ function Page() {
       { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed },
     ]);
     setText('');
+    Keyboard.dismiss();
   }, [text, userKey]);
 
   return (
@@ -156,6 +159,7 @@ function Page() {
         </Text>
       </View>
 
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={[styles.slimeArea, { backgroundColor: theme.slimeAreaBg }]}>
         <BackgroundDots theme={theme} />
         {slimes.length === 0 ? (
@@ -172,6 +176,7 @@ function Page() {
           slimes.map(slime => <Slime key={slime.id} {...slime} />)
         )}
       </View>
+      </TouchableWithoutFeedback>
 
       <View
         style={[
