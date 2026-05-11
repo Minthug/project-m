@@ -22,6 +22,8 @@ const KEYWORDS: Record<Expression, string[]> = {
   blank: [],
 };
 
+const PARTICLE_COUNT = 16;
+
 function detectExpression(text: string): Expression {
   const t = text.toLowerCase();
   for (const [expr, keywords] of Object.entries(KEYWORDS) as [Expression, string[]][]) {
@@ -47,7 +49,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
 
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
-  const popOpacity = useRef(new Animated.Value(1)).current;
+  // popOpacity는 inner view(native driver)에서만 사용
+  const popOpacity = useRef(new Animated.Value(computeOpacity(createdAt))).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const isDragging = useRef(false);
@@ -55,11 +58,39 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
   const onDeleteRef = useRef(onDelete);
   const onMoveRef = useRef(onMove);
   const [isActive, setIsActive] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
+
+  // 파티클 애니메이션 값 (native driver)
+  const particleAnims = useRef(
+    Array.from({ length: PARTICLE_COUNT }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+      scale: new Animated.Value(1),
+    })),
+  ).current;
+
+  // 파티클 고유 속성 (랜덤, 마운트 시 한 번 결정)
+  const particleProps = useMemo(
+    () =>
+      Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+        const angle = (i / PARTICLE_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+        const distance = size * (0.4 + Math.random() * 0.7);
+        return {
+          dx: Math.cos(angle) * distance,
+          dy: Math.sin(angle) * distance - size * 0.35,
+          particleSize: 3 + Math.random() * 5,
+          isRect: Math.random() > 0.6,
+          duration: 380 + Math.random() * 320,
+          delay: Math.floor(Math.random() * 130),
+        };
+      }),
+    [size],
+  );
 
   useEffect(() => { onDeleteRef.current = onDelete; }, [onDelete]);
   useEffect(() => { onMoveRef.current = onMove; }, [onMove]);
 
-  // 부모에서 x/y가 갱신되면(merge 후) pan 리셋
   useEffect(() => {
     pan.setValue({ x: 0, y: 0 });
     pan.setOffset({ x: 0, y: 0 });
@@ -99,63 +130,82 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     [size],
   );
 
-  const ageOpacity = useMemo(() => computeOpacity(createdAt), [createdAt]);
-
   const triggerPop = () => {
-    // 1단계: 부들부들 떨기
+    // 파티클 초기화
+    particleAnims.forEach(p => {
+      p.x.setValue(0);
+      p.y.setValue(0);
+      p.opacity.setValue(1);
+      p.scale.setValue(1);
+    });
+    setShowParticles(true);
+
+    // 1단계: 몸체 부들부들 + 파티클 즉시 산란 시작
     const shake = Animated.sequence([
-      Animated.timing(pan.x, { toValue: 12, duration: 35, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: -12, duration: 35, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: 10, duration: 30, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: -10, duration: 30, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: 7, duration: 28, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: -7, duration: 28, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: 4, duration: 25, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: -4, duration: 25, useNativeDriver: false }),
-      Animated.timing(pan.x, { toValue: 0, duration: 20, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 11, duration: 35, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -11, duration: 35, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 9, duration: 30, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -9, duration: 30, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 6, duration: 28, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -6, duration: 28, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 3, duration: 22, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -3, duration: 22, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 0, duration: 18, useNativeDriver: false }),
     ]);
 
     const scaleWobble = Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(scaleX, { toValue: 1.18, duration: 45, useNativeDriver: true }),
-          Animated.timing(scaleY, { toValue: 0.82, duration: 45, useNativeDriver: true }),
+          Animated.timing(scaleX, { toValue: 1.18, duration: 40, useNativeDriver: true }),
+          Animated.timing(scaleY, { toValue: 0.82, duration: 40, useNativeDriver: true }),
         ]),
         Animated.parallel([
-          Animated.timing(scaleX, { toValue: 0.82, duration: 45, useNativeDriver: true }),
-          Animated.timing(scaleY, { toValue: 1.18, duration: 45, useNativeDriver: true }),
+          Animated.timing(scaleX, { toValue: 0.82, duration: 40, useNativeDriver: true }),
+          Animated.timing(scaleY, { toValue: 1.18, duration: 40, useNativeDriver: true }),
         ]),
       ]),
       { iterations: 4 },
     );
 
+    // 파티클 각자 흩어지기 (몸체 떨기 시작과 동시에)
+    const particleAnimations = particleAnims.map((p, i) => {
+      const { dx, dy, duration, delay } = particleProps[i];
+      return Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(p.x, { toValue: dx, duration, useNativeDriver: true }),
+          Animated.timing(p.y, { toValue: dy, duration, useNativeDriver: true }),
+          Animated.timing(p.opacity, { toValue: 0, duration, useNativeDriver: true }),
+          Animated.timing(p.scale, { toValue: 0, duration, useNativeDriver: true }),
+        ]),
+      ]);
+    });
+
+    // 파티클은 fire & forget, 몸체 완전히 없어지면 onDelete
+    Animated.parallel(particleAnimations).start();
+
+    // 2단계 (300ms 후): 납작해지며 부스러짐
     Animated.parallel([shake, scaleWobble]).start(() => {
-      // 2단계: 납작하게 쭈그러들기
       Animated.parallel([
-        Animated.spring(scaleX, { toValue: 1.7, useNativeDriver: true, tension: 400, friction: 6 }),
-        Animated.spring(scaleY, { toValue: 0.2, useNativeDriver: true, tension: 400, friction: 6 }),
+        Animated.spring(scaleX, { toValue: 1.6, useNativeDriver: true, tension: 400, friction: 6 }),
+        Animated.spring(scaleY, { toValue: 0.18, useNativeDriver: true, tension: 400, friction: 6 }),
       ]).start(() => {
-        // 3단계: 먼지처럼 부스러지기 (단계적으로)
+        // 3단계: 먼지처럼 단계적 소멸
         Animated.sequence([
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 1.2, duration: 60, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0.6, duration: 60, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0.75, duration: 60, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 1.1, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.5, duration: 55, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.6, duration: 55, useNativeDriver: true }),
           ]),
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 0.7, duration: 55, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0.4, duration: 55, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0.45, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 0.6, duration: 50, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.3, duration: 50, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.3, duration: 50, useNativeDriver: true }),
           ]),
           Animated.parallel([
-            Animated.timing(scaleX, { toValue: 0.3, duration: 50, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0.2, duration: 50, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0.2, duration: 50, useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(scaleX, { toValue: 0, duration: 60, useNativeDriver: true }),
-            Animated.timing(scaleY, { toValue: 0, duration: 60, useNativeDriver: true }),
-            Animated.timing(popOpacity, { toValue: 0, duration: 60, useNativeDriver: true }),
+            Animated.timing(scaleX, { toValue: 0, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0, duration: 55, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0, duration: 55, useNativeDriver: true }),
           ]),
         ]).start(() => onDeleteRef.current?.());
       });
@@ -254,27 +304,9 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     return (
       <View
         key={`${cfg.left}`}
-        style={{
-          position: 'absolute',
-          width: eyeWidth,
-          height: eyeHeight,
-          backgroundColor: 'white',
-          borderRadius: cfg.size,
-          top: cfg.top,
-          left: cfg.left,
-        }}
+        style={{ position: 'absolute', width: eyeWidth, height: eyeHeight, backgroundColor: 'white', borderRadius: cfg.size, top: cfg.top, left: cfg.left }}
       >
-        <View
-          style={{
-            position: 'absolute',
-            width: pupilSize,
-            height: pupilSize,
-            backgroundColor: '#111',
-            borderRadius: pupilSize,
-            top: eyeHeight * 0.25,
-            left: eyeWidth * 0.22,
-          }}
-        />
+        <View style={{ position: 'absolute', width: pupilSize, height: pupilSize, backgroundColor: '#111', borderRadius: pupilSize, top: eyeHeight * 0.25, left: eyeWidth * 0.22 }} />
       </View>
     );
   };
@@ -286,43 +318,17 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     const rx = eyeConfig.right.left - size * 0.01;
     const by = eyeConfig.left.top - size * 0.1;
     const base = { position: 'absolute' as const, width: bw, height: bh, borderRadius: 3 };
-
     switch (expression) {
       case 'angry':
-        return (
-          <>
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: lx, transform: [{ rotate: '25deg' }] }} />
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: rx, transform: [{ rotate: '-25deg' }] }} />
-          </>
-        );
+        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: lx, transform: [{ rotate: '25deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: rx, transform: [{ rotate: '-25deg' }] }} /></>);
       case 'sad':
-        return (
-          <>
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: lx, transform: [{ rotate: '-20deg' }] }} />
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: rx, transform: [{ rotate: '20deg' }] }} />
-          </>
-        );
+        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: lx, transform: [{ rotate: '-20deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: rx, transform: [{ rotate: '20deg' }] }} /></>);
       case 'surprised':
-        return (
-          <>
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: lx }} />
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: rx }} />
-          </>
-        );
+        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: lx }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: rx }} /></>);
       case 'happy':
-        return (
-          <>
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: lx, transform: [{ rotate: '-8deg' }] }} />
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: rx, transform: [{ rotate: '8deg' }] }} />
-          </>
-        );
+        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: lx, transform: [{ rotate: '-8deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: rx, transform: [{ rotate: '8deg' }] }} /></>);
       default:
-        return (
-          <>
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: lx }} />
-            <View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: rx }} />
-          </>
-        );
+        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: lx }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: rx }} /></>);
     }
   };
 
@@ -331,34 +337,20 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
     const cx = size * 0.5;
     switch (expression) {
       case 'happy':
-        return (
-          <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: cx - size * 0.19 }} />
-        );
+        return <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: cx - size * 0.19 }} />;
       case 'sad':
-        return (
-          <>
-            <View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: cx - size * 0.15 }} />
-            <View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} />
-          </>
-        );
+        return (<><View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: cx - size * 0.15 }} /><View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} /></>);
       case 'surprised':
-        return (
-          <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: cx - size * 0.11 }} />
-        );
+        return <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: cx - size * 0.11 }} />;
       case 'angry':
-        return (
-          <>
-            <View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.14 }} />
-            <View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx - size * 0.2, transform: [{ rotate: '40deg' }] }} />
-            <View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx + size * 0.12, transform: [{ rotate: '-40deg' }] }} />
-          </>
-        );
+        return (<><View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.14 }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx - size * 0.2, transform: [{ rotate: '40deg' }] }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx + size * 0.12, transform: [{ rotate: '-40deg' }] }} /></>);
       default:
-        return (
-          <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.1 }} />
-        );
+        return <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.1 }} />;
     }
   };
+
+  const cx = size * 0.5;
+  const cy = size * 0.45;
 
   return (
     <Animated.View
@@ -368,15 +360,40 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
           left: x,
           top: y,
           zIndex: isActive ? 100 : 1,
-          opacity: popOpacity,
           transform: [{ translateX: pan.x }, { translateY: pan.y }],
         },
       ]}
       {...panResponder.panHandlers}
     >
+      {/* 파티클 레이어 */}
+      {showParticles && particleAnims.map((p, i) => {
+        const { particleSize, isRect } = particleProps[i];
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              width: particleSize,
+              height: isRect ? particleSize * 0.4 : particleSize,
+              borderRadius: isRect ? 1 : particleSize / 2,
+              backgroundColor: color,
+              left: cx - particleSize / 2,
+              top: cy - particleSize / 2,
+              opacity: p.opacity,
+              transform: [
+                { translateX: p.x },
+                { translateY: p.y },
+                { scale: p.scale },
+              ],
+            }}
+          />
+        );
+      })}
+
+      {/* 슬라임 몸체 */}
       <Animated.View
         style={{
-          opacity: ageOpacity,
+          opacity: popOpacity,
           ...styles.blob,
           width: size,
           height: size * 0.9,
@@ -399,6 +416,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    overflow: 'visible',
   },
   blob: {
     shadowColor: '#000',
