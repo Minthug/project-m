@@ -8,19 +8,35 @@ interface SlimeProps {
   size: number;
   x: number;
   y: number;
+  text?: string;
 }
 
-const EXPRESSIONS: Expression[] = ['happy', 'sad', 'surprised', 'blank', 'angry'];
+const KEYWORDS: Record<Expression, string[]> = {
+  angry: ['짜증', '열받', '빡', '화나', '싫어', '미치겠', '분노', '억울', '더럽', '진짜로', '왜이래', '어이없', '황당', '최악', '별로', '구려', '망했'],
+  sad: ['슬퍼', '울고', '눈물', '힘들', '지쳐', '외로워', '우울', '그리워', '보고싶', '상처', '아파', '힘들어', '지침', '서러', '괴로', '무기력'],
+  surprised: ['헐', '대박', '미쳤', '말도안돼', '당황', '믿을수없', '뭐야', '진짜', '충격', '놀랐', '설마', '이게뭐', '갑자기'],
+  happy: ['좋아', '행복', '신나', '기뻐', '즐거워', '최고', '사랑', '고마워', '감사', '다행', '설레', '기대', '신남'],
+  blank: [],
+};
 
-export function Slime({ color, size, x, y }: SlimeProps) {
+function detectExpression(text: string): Expression {
+  const t = text.toLowerCase();
+  for (const [expr, keywords] of Object.entries(KEYWORDS) as [Expression, string[]][]) {
+    if (expr === 'blank') continue;
+    if (keywords.some(k => t.includes(k))) return expr;
+  }
+  return 'blank';
+}
+
+export function Slime({ color, size, x, y, text }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
 
   const expression = useMemo<Expression>(
-    () => EXPRESSIONS[Math.floor(Math.random() * EXPRESSIONS.length)] as Expression,
-    [],
+    () => (text ? detectExpression(text) : 'blank'),
+    [text],
   );
 
   const borderRadii = useMemo(

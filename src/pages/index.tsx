@@ -64,6 +64,7 @@ interface SlimeData {
   size: number;
   x: number;
   y: number;
+  text: string;
 }
 
 export const Route = createRoute('/', {
@@ -138,7 +139,7 @@ function Page() {
 
     setSlimes(prev => [
       ...prev,
-      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y },
+      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed },
     ]);
     setText('');
   }, [text, userKey]);
