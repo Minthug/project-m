@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 
 type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
 
@@ -24,6 +25,97 @@ const KEYWORDS: Record<Expression, string[]> = {
 };
 
 const PARTICLE_COUNT = 16;
+
+type ShapeType = 0 | 1 | 2 | 3;
+
+// SVG cubic bezier blob 생성
+function makeBlobPath(w: number, h: number, pts: number[]): string {
+  const n = pts.length / 2;
+  const xs = pts.filter((_, i) => i % 2 === 0);
+  const ys = pts.filter((_, i) => i % 2 === 1);
+
+  let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = { x: xs[(i - 1 + n) % n], y: ys[(i - 1 + n) % n] };
+    const p1 = { x: xs[i], y: ys[i] };
+    const p2 = { x: xs[(i + 1) % n], y: ys[(i + 1) % n] };
+    const p3 = { x: xs[(i + 2) % n], y: ys[(i + 2) % n] };
+    const cp1x = p1.x + (p2.x - p0.x) / 5;
+    const cp1y = p1.y + (p2.y - p0.y) / 5;
+    const cp2x = p2.x - (p3.x - p1.x) / 5;
+    const cp2y = p2.y - (p3.y - p1.y) / 5;
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d + ' Z';
+}
+
+function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: string; w: number; h: number } {
+  const r = (i: number, base: number, range: number) => base + seed[i % seed.length] * range;
+
+  switch (shape) {
+    case 0: { // 둥근형
+      const w = size, h = size * 0.88;
+      const cx = w / 2, cy = h / 2;
+      const pts = [
+        cx + r(0, -0.05, 0.1) * w, cy - r(1, 0.36, 0.1) * h,
+        cx + r(2, 0.32, 0.1) * w, cy - r(3, 0.2, 0.12) * h,
+        cx + r(4, 0.38, 0.1) * w, cy + r(5, 0.1, 0.1) * h,
+        cx + r(6, 0.15, 0.1) * w, cy + r(7, 0.35, 0.1) * h,
+        cx - r(8, 0.12, 0.1) * w, cy + r(9, 0.38, 0.1) * h,
+        cx - r(10, 0.38, 0.1) * w, cy + r(11, 0.08, 0.12) * h,
+        cx - r(12, 0.35, 0.1) * w, cy - r(13, 0.2, 0.12) * h,
+      ];
+      return { path: makeBlobPath(w, h, pts), w, h };
+    }
+    case 1: { // 넓은 납작형
+      const w = size * 1.4, h = size * 0.62;
+      const cx = w / 2, cy = h / 2;
+      const pts = [
+        cx - r(0, 0.1, 0.15) * w, cy - r(1, 0.38, 0.1) * h,
+        cx + r(2, 0.1, 0.15) * w, cy - r(3, 0.42, 0.08) * h,
+        cx + r(4, 0.44, 0.06) * w, cy - r(5, 0.1, 0.15) * h,
+        cx + r(6, 0.44, 0.06) * w, cy + r(7, 0.2, 0.15) * h,
+        cx + r(8, 0.1, 0.15) * w, cy + r(9, 0.42, 0.08) * h,
+        cx - r(10, 0.1, 0.15) * w, cy + r(11, 0.4, 0.1) * h,
+        cx - r(12, 0.44, 0.06) * w, cy + r(13, 0.15, 0.15) * h,
+        cx - r(14, 0.44, 0.06) * w, cy - r(15, 0.15, 0.15) * h,
+      ];
+      return { path: makeBlobPath(w, h, pts), w, h };
+    }
+    case 2: { // 높은 세로형
+      const w = size * 0.72, h = size * 1.2;
+      const cx = w / 2, cy = h / 2;
+      const pts = [
+        cx + r(0, -0.05, 0.1) * w, cy - r(1, 0.44, 0.06) * h,
+        cx + r(2, 0.38, 0.1) * w, cy - r(3, 0.22, 0.12) * h,
+        cx + r(4, 0.42, 0.08) * w, cy + r(5, 0.1, 0.12) * h,
+        cx + r(6, 0.2, 0.15) * w, cy + r(7, 0.42, 0.08) * h,
+        cx - r(8, 0.18, 0.15) * w, cy + r(9, 0.44, 0.06) * h,
+        cx - r(10, 0.42, 0.08) * w, cy + r(11, 0.12, 0.12) * h,
+        cx - r(12, 0.4, 0.08) * w, cy - r(13, 0.2, 0.12) * h,
+      ];
+      return { path: makeBlobPath(w, h, pts), w, h };
+    }
+    case 3: { // 울퉁불퉁형
+      const w = size * 1.05, h = size * 0.95;
+      const cx = w / 2, cy = h / 2;
+      const pts = [
+        cx - r(0, 0.05, 0.1) * w, cy - r(1, 0.42, 0.08) * h,
+        cx + r(2, 0.18, 0.18) * w, cy - r(3, 0.38, 0.12) * h,
+        cx + r(4, 0.42, 0.08) * w, cy - r(5, 0.08, 0.18) * h,
+        cx + r(6, 0.38, 0.12) * w, cy + r(7, 0.18, 0.18) * h,
+        cx + r(8, 0.12, 0.18) * w, cy + r(9, 0.42, 0.08) * h,
+        cx - r(10, 0.05, 0.18) * w, cy + r(11, 0.38, 0.12) * h,
+        cx - r(12, 0.38, 0.12) * w, cy + r(13, 0.2, 0.18) * h,
+        cx - r(14, 0.44, 0.06) * w, cy - r(15, 0.08, 0.18) * h,
+        cx - r(16, 0.2, 0.18) * w, cy - r(17, 0.38, 0.12) * h,
+      ];
+      return { path: makeBlobPath(w, h, pts), w, h };
+    }
+    default:
+      return { path: '', w: size, h: size * 0.88 };
+  }
+}
 
 function detectExpression(text: string): Expression {
   const t = text.toLowerCase();
@@ -108,31 +200,18 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const isNegative = expression === 'angry' || expression === 'sad';
 
-  const borderRadii = useMemo(
-    () => ({
-      borderTopLeftRadius: size * (0.5 + Math.random() * 0.3),
-      borderTopRightRadius: size * (0.3 + Math.random() * 0.3),
-      borderBottomLeftRadius: size * (0.35 + Math.random() * 0.3),
-      borderBottomRightRadius: size * (0.5 + Math.random() * 0.3),
-    }),
-    [size],
-  );
+  const shapeType = useMemo<ShapeType>(() => (Math.floor(Math.random() * 4)) as ShapeType, []);
+  const shapeSeed = useMemo(() => Array.from({ length: 20 }, () => Math.random()), []);
+  const blob = useMemo(() => generateBlob(size, shapeType, shapeSeed), [size, shapeType, shapeSeed]);
 
-  const eyeConfig = useMemo(
-    () => ({
-      left: {
-        top: size * (0.26 + Math.random() * 0.06),
-        left: size * (0.16 + Math.random() * 0.06),
-        size: size * (0.1 + Math.random() * 0.04),
-      },
-      right: {
-        top: size * (0.24 + Math.random() * 0.06),
-        left: size * (0.48 + Math.random() * 0.06),
-        size: size * (0.1 + Math.random() * 0.04),
-      },
-    }),
-    [size],
-  );
+  const eyeConfig = useMemo(() => {
+    const w = blob.w, h = blob.h;
+    const es = size * (0.1 + Math.random() * 0.04);
+    return {
+      left:  { top: h * (0.28 + Math.random() * 0.06), left: w * (0.18 + Math.random() * 0.06), size: es },
+      right: { top: h * (0.26 + Math.random() * 0.06), left: w * (0.52 + Math.random() * 0.06), size: es },
+    };
+  }, [blob.w, blob.h, size]);
 
   const triggerPop = () => {
     // 파티클 초기화
@@ -362,24 +441,24 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   };
 
   const renderMouth = () => {
-    const mouthY = size * 0.58;
-    const cx = size * 0.5;
+    const mouthY = blob.h * 0.62;
+    const mcx = blob.w / 2;
     switch (expression) {
       case 'happy':
-        return <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: cx - size * 0.19 }} />;
+        return <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: mcx - size * 0.19 }} />;
       case 'sad':
-        return (<><View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: cx - size * 0.15 }} /><View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} /></>);
+        return (<><View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: mcx - size * 0.15 }} /><View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} /></>);
       case 'surprised':
-        return <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: cx - size * 0.11 }} />;
+        return <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: mcx - size * 0.11 }} />;
       case 'angry':
-        return (<><View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.14 }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx - size * 0.2, transform: [{ rotate: '40deg' }] }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: cx + size * 0.12, transform: [{ rotate: '-40deg' }] }} /></>);
+        return (<><View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: mcx - size * 0.14 }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: mcx - size * 0.2, transform: [{ rotate: '40deg' }] }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: mcx + size * 0.12, transform: [{ rotate: '-40deg' }] }} /></>);
       default:
-        return <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: cx - size * 0.1 }} />;
+        return <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: mcx - size * 0.1 }} />;
     }
   };
 
-  const cx = size * 0.5;
-  const cy = size * 0.45;
+  const cx = blob.w / 2;
+  const cy = blob.h / 2;
 
   return (
     <Animated.View
@@ -444,16 +523,21 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
       <Animated.View
         style={{
           opacity: popOpacity,
-          ...styles.blob,
-          width: size,
-          height: size * 0.9,
-          backgroundColor: color,
-          ...borderRadii,
+          width: blob.w,
+          height: blob.h,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowRadius: 10,
           shadowOpacity,
+          elevation: 10,
           transform: [{ scaleX }, { scaleY }],
         }}
       >
-        <View style={{ position: 'absolute', top: size * 0.1, left: size * 0.15, width: size * 0.28, height: size * 0.13, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: size * 0.07, transform: [{ rotate: '-15deg' }] }} />
+        <Svg width={blob.w} height={blob.h} style={StyleSheet.absoluteFill}>
+          <Path d={blob.path} fill={color} />
+        </Svg>
+        {/* 광택 */}
+        <View style={{ position: 'absolute', top: blob.h * 0.1, left: blob.w * 0.18, width: blob.w * 0.26, height: blob.h * 0.13, backgroundColor: 'rgba(255,255,255,0.32)', borderRadius: size * 0.07, transform: [{ rotate: '-15deg' }] }} />
         {renderEyebrows()}
         {renderEye(eyeConfig.left)}
         {renderEye(eyeConfig.right)}
