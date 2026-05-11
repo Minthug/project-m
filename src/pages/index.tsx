@@ -10,21 +10,48 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { Slime } from '../components/Slime';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const SLIME_COLORS = [
-  '#6B21A8',
-  '#991B1B',
-  '#166534',
-  '#92400E',
-  '#1E3A5F',
-  '#831843',
-  '#3F3F46',
-  '#7C2D12',
+  '#7C3AED',
+  '#DC2626',
+  '#16A34A',
+  '#D97706',
+  '#2563EB',
+  '#DB2777',
+  '#525252',
+  '#EA580C',
 ];
+
+const lightTheme = {
+  bg: '#FFFFFF',
+  slimeAreaBg: '#F9FAFB',
+  inputAreaBg: '#FFFFFF',
+  borderColor: '#E5E7EB',
+  inputBg: '#F3F4F6',
+  inputText: '#111827',
+  placeholderText: '#9CA3AF',
+  emptyTitle: '#374151',
+  emptySubtitle: '#9CA3AF',
+  buttonDisabledBg: '#D1D5DB',
+};
+
+const darkTheme = {
+  bg: '#0F0F1A',
+  slimeAreaBg: '#0F0F1A',
+  inputAreaBg: '#0F0F1A',
+  borderColor: '#1F2937',
+  inputBg: '#1C1C2E',
+  inputText: '#F3F4F6',
+  placeholderText: '#6B7280',
+  emptyTitle: '#9CA3AF',
+  emptySubtitle: '#4B5563',
+  buttonDisabledBg: '#374151',
+};
 
 interface SlimeData {
   id: string;
@@ -39,6 +66,9 @@ export const Route = createRoute('/', {
 });
 
 function Page() {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+
   const [userKey, setUserKey] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
@@ -69,32 +99,32 @@ function Page() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.slimeArea}>
+      <View style={[styles.slimeArea, { backgroundColor: theme.slimeAreaBg }]}>
         {slimes.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>지금 기분이 어때요?</Text>
-            <Text style={styles.emptySubtitle}>털어놓으면 슬라임이 될 거예요</Text>
+            <Text style={[styles.emptyTitle, { color: theme.emptyTitle }]}>지금 기분이 어때요?</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.emptySubtitle }]}>털어놓으면 슬라임이 될 거예요</Text>
           </View>
         ) : (
           slimes.map(slime => <Slime key={slime.id} {...slime} />)
         )}
       </View>
 
-      <View style={styles.inputArea}>
+      <View style={[styles.inputArea, { borderTopColor: theme.borderColor, backgroundColor: theme.inputAreaBg }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.borderColor }]}
           value={text}
           onChangeText={setText}
           placeholder="지금 어떤 기분이에요? 다 털어놔요"
-          placeholderTextColor="#6B7280"
+          placeholderTextColor={theme.placeholderText}
           multiline
           maxLength={200}
         />
         <TouchableOpacity
-          style={[styles.button, !text.trim() && styles.buttonDisabled]}
+          style={[styles.button, !text.trim() && { backgroundColor: theme.buttonDisabledBg }]}
           onPress={handleSubmit}
           disabled={!text.trim()}
           activeOpacity={0.8}
@@ -109,7 +139,6 @@ function Page() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F1A',
   },
   slimeArea: {
     flex: 1,
@@ -124,12 +153,10 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#9CA3AF',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#4B5563',
     textAlign: 'center',
   },
   inputArea: {
@@ -137,28 +164,20 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1F2937',
-    backgroundColor: '#0F0F1A',
   },
   input: {
-    backgroundColor: '#1C1C2E',
     borderRadius: 12,
     padding: 14,
-    color: '#F3F4F6',
     fontSize: 16,
     minHeight: 52,
     maxHeight: 120,
     borderWidth: 1,
-    borderColor: '#374151',
   },
   button: {
     backgroundColor: '#7C3AED',
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#374151',
   },
   buttonText: {
     color: '#fff',

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Animated, Pressable, View, StyleSheet } from 'react-native';
+import { Animated, Pressable, View, StyleSheet, useColorScheme } from 'react-native';
 
 interface SlimeProps {
   color: string;
@@ -9,6 +9,8 @@ interface SlimeProps {
 }
 
 export function Slime({ color, size, x, y }: SlimeProps) {
+  const colorScheme = useColorScheme();
+  const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
 
@@ -62,6 +64,7 @@ export function Slime({ color, size, x, y }: SlimeProps) {
             borderTopRightRadius: size * 0.45,
             borderBottomLeftRadius: size * 0.5,
             borderBottomRightRadius: size * 0.7,
+            shadowOpacity,
             transform: [{ scaleX }, { scaleY }],
           },
         ]}
@@ -102,7 +105,6 @@ const styles = StyleSheet.create({
   blob: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
     shadowRadius: 10,
     elevation: 10,
   },
