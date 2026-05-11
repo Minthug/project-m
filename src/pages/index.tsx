@@ -1,5 +1,6 @@
 import { createRoute } from '@granite-js/react-native';
 import { getAnonymousKey } from '@apps-in-toss/framework';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   StyleSheet,
@@ -74,12 +75,19 @@ function Page() {
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
 
   useEffect(() => {
+    AsyncStorage.getItem('slimes').then(saved => {
+      if (saved) setSlimes(JSON.parse(saved));
+    });
     getAnonymousKey().then(result => {
       if (result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
         setUserKey(result.hash);
       }
     });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem('slimes', JSON.stringify(slimes));
+  }, [slimes]);
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
