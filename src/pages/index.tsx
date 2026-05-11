@@ -175,10 +175,13 @@ function Page() {
     setSlimes(prev => {
       const original = prev.find(s => s.id === id);
       if (!original) return prev;
+      const colorL = SLIME_COLORS[Math.floor(Math.random() * SLIME_COLORS.length)] ?? original.color;
+      const rest = SLIME_COLORS.filter(c => c !== colorL);
+      const colorR = rest[Math.floor(Math.random() * rest.length)] ?? colorL;
       return [
         ...prev.filter(s => s.id !== id),
-        { ...original, id: `split-L-${Date.now()}`, size: newSize, x: sx - offset, y: sy, createdAt: Date.now() },
-        { ...original, id: `split-R-${Date.now()}`, size: newSize, x: sx + offset, y: sy, createdAt: Date.now() },
+        { ...original, id: `split-L-${Date.now()}`, color: colorL, size: newSize, x: sx - offset, y: sy, createdAt: Date.now() },
+        { ...original, id: `split-R-${Date.now()}`, color: colorR, size: newSize, x: sx + offset, y: sy, createdAt: Date.now() },
       ];
     });
   }, []);
