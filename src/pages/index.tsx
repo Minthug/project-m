@@ -115,14 +115,18 @@ function Page() {
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
 
   useEffect(() => {
+    let mounted = true;
+
     Storage.getItem('slimes').then(saved => {
-      if (saved) setSlimes(JSON.parse(saved));
+      if (mounted && saved) setSlimes(JSON.parse(saved));
     });
     getAnonymousKey().then(result => {
-      if (result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
+      if (mounted && result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
         setUserKey(result.hash);
       }
     });
+
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {

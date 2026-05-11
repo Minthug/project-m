@@ -66,7 +66,7 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
   );
 
   useEffect(() => {
-    Animated.sequence([
+    const anim = Animated.sequence([
       Animated.parallel([
         Animated.spring(scaleX, { toValue: 1.2, useNativeDriver: true, tension: 120, friction: 4 }),
         Animated.spring(scaleY, { toValue: 0.75, useNativeDriver: true, tension: 120, friction: 4 }),
@@ -75,7 +75,9 @@ export function Slime({ color, size, x, y, text }: SlimeProps) {
         Animated.spring(scaleX, { toValue: 1, useNativeDriver: true, tension: 200, friction: 7 }),
         Animated.spring(scaleY, { toValue: 1, useNativeDriver: true, tension: 200, friction: 7 }),
       ]),
-    ]).start();
+    ]);
+    anim.start();
+    return () => anim.stop();
   }, []);
 
   const handlePressIn = () => {
