@@ -102,13 +102,64 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove }: 
   const ageOpacity = useMemo(() => computeOpacity(createdAt), [createdAt]);
 
   const triggerPop = () => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(scaleX, { toValue: 1.7, useNativeDriver: true, tension: 300, friction: 5 }),
-        Animated.spring(scaleY, { toValue: 1.7, useNativeDriver: true, tension: 300, friction: 5 }),
+    // 1단계: 부들부들 떨기
+    const shake = Animated.sequence([
+      Animated.timing(pan.x, { toValue: 12, duration: 35, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -12, duration: 35, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 10, duration: 30, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -10, duration: 30, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 7, duration: 28, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -7, duration: 28, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 4, duration: 25, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: -4, duration: 25, useNativeDriver: false }),
+      Animated.timing(pan.x, { toValue: 0, duration: 20, useNativeDriver: false }),
+    ]);
+
+    const scaleWobble = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(scaleX, { toValue: 1.18, duration: 45, useNativeDriver: true }),
+          Animated.timing(scaleY, { toValue: 0.82, duration: 45, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(scaleX, { toValue: 0.82, duration: 45, useNativeDriver: true }),
+          Animated.timing(scaleY, { toValue: 1.18, duration: 45, useNativeDriver: true }),
+        ]),
       ]),
-      Animated.timing(popOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
-    ]).start(() => onDeleteRef.current?.());
+      { iterations: 4 },
+    );
+
+    Animated.parallel([shake, scaleWobble]).start(() => {
+      // 2단계: 납작하게 쭈그러들기
+      Animated.parallel([
+        Animated.spring(scaleX, { toValue: 1.7, useNativeDriver: true, tension: 400, friction: 6 }),
+        Animated.spring(scaleY, { toValue: 0.2, useNativeDriver: true, tension: 400, friction: 6 }),
+      ]).start(() => {
+        // 3단계: 먼지처럼 부스러지기 (단계적으로)
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(scaleX, { toValue: 1.2, duration: 60, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.6, duration: 60, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.75, duration: 60, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scaleX, { toValue: 0.7, duration: 55, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.4, duration: 55, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.45, duration: 55, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scaleX, { toValue: 0.3, duration: 50, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0.2, duration: 50, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0.2, duration: 50, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scaleX, { toValue: 0, duration: 60, useNativeDriver: true }),
+            Animated.timing(scaleY, { toValue: 0, duration: 60, useNativeDriver: true }),
+            Animated.timing(popOpacity, { toValue: 0, duration: 60, useNativeDriver: true }),
+          ]),
+        ]).start(() => onDeleteRef.current?.());
+      });
+    });
   };
 
   const panResponder = useRef(
