@@ -94,33 +94,33 @@ function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: s
       ];
       return { path: makeBlobPath(w, h, pts), w, h };
     }
-    case 2: { // 높은 세로형
-      const w = size * 0.72, h = size * 1.2;
+    case 2: { // 살짝 키 큰 둥근형
+      const w = size * 0.9, h = size * 1.05;
       const cx = w / 2, cy = h / 2;
       const pts = [
-        cx + r(0, -0.05, 0.1) * w, cy - r(1, 0.44, 0.06) * h,
-        cx + r(2, 0.38, 0.1) * w, cy - r(3, 0.22, 0.12) * h,
-        cx + r(4, 0.42, 0.08) * w, cy + r(5, 0.1, 0.12) * h,
-        cx + r(6, 0.2, 0.15) * w, cy + r(7, 0.42, 0.08) * h,
-        cx - r(8, 0.18, 0.15) * w, cy + r(9, 0.44, 0.06) * h,
-        cx - r(10, 0.42, 0.08) * w, cy + r(11, 0.12, 0.12) * h,
-        cx - r(12, 0.4, 0.08) * w, cy - r(13, 0.2, 0.12) * h,
+        cx + r(0, -0.04, 0.06) * w, cy - r(1, 0.42, 0.06) * h,
+        cx + r(2, 0.30, 0.08) * w, cy - r(3, 0.22, 0.08) * h,
+        cx + r(4, 0.40, 0.06) * w, cy + r(5, 0.06, 0.08) * h,
+        cx + r(6, 0.18, 0.08) * w, cy + r(7, 0.38, 0.06) * h,
+        cx - r(8, 0.15, 0.08) * w, cy + r(9, 0.40, 0.06) * h,
+        cx - r(10, 0.40, 0.06) * w, cy + r(11, 0.06, 0.08) * h,
+        cx - r(12, 0.32, 0.08) * w, cy - r(13, 0.22, 0.08) * h,
       ];
       return { path: makeBlobPath(w, h, pts), w, h };
     }
-    case 3: { // 울퉁불퉁형
-      const w = size * 1.05, h = size * 0.95;
+    case 3: { // 살짝 납작 둥근형
+      const w = size * 1.15, h = size * 0.82;
       const cx = w / 2, cy = h / 2;
       const pts = [
-        cx - r(0, 0.05, 0.1) * w, cy - r(1, 0.42, 0.08) * h,
-        cx + r(2, 0.18, 0.18) * w, cy - r(3, 0.38, 0.12) * h,
-        cx + r(4, 0.42, 0.08) * w, cy - r(5, 0.08, 0.18) * h,
-        cx + r(6, 0.38, 0.12) * w, cy + r(7, 0.18, 0.18) * h,
-        cx + r(8, 0.12, 0.18) * w, cy + r(9, 0.42, 0.08) * h,
-        cx - r(10, 0.05, 0.18) * w, cy + r(11, 0.38, 0.12) * h,
-        cx - r(12, 0.38, 0.12) * w, cy + r(13, 0.2, 0.18) * h,
-        cx - r(14, 0.44, 0.06) * w, cy - r(15, 0.08, 0.18) * h,
-        cx - r(16, 0.2, 0.18) * w, cy - r(17, 0.38, 0.12) * h,
+        cx + r(0, -0.04, 0.06) * w, cy - r(1, 0.40, 0.06) * h,
+        cx + r(2, 0.28, 0.08) * w, cy - r(3, 0.32, 0.06) * h,
+        cx + r(4, 0.44, 0.04) * w, cy - r(5, 0.04, 0.08) * h,
+        cx + r(6, 0.40, 0.06) * w, cy + r(7, 0.28, 0.08) * h,
+        cx + r(8, 0.10, 0.08) * w, cy + r(9, 0.40, 0.06) * h,
+        cx - r(10, 0.08, 0.08) * w, cy + r(11, 0.40, 0.06) * h,
+        cx - r(12, 0.40, 0.06) * w, cy + r(13, 0.28, 0.08) * h,
+        cx - r(14, 0.44, 0.04) * w, cy - r(15, 0.04, 0.08) * h,
+        cx - r(16, 0.28, 0.08) * w, cy - r(17, 0.32, 0.06) * h,
       ];
       return { path: makeBlobPath(w, h, pts), w, h };
     }
@@ -420,70 +420,84 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const renderFace = () => {
     const fcx = blob.w / 2;
-    const fcy = blob.h * 0.44;
-    const eyeR = Math.max(3.5, size * 0.060);
-    const spread = blob.w * 0.165;
+    const eyeR = Math.max(6, size * 0.13);
+    const pupR = eyeR * 0.52;
+    const spread = blob.w * 0.20;
     const lEx = fcx - spread;
     const rEx = fcx + spread;
-    const eyeY = fcy;
-    const mY = fcy + blob.h * 0.20;
-    const mW = blob.w * 0.175;
-    const sw = Math.max(2.5, size * 0.036);
-    const ef = 'rgba(0,0,0,0.82)';
-    const ms = 'rgba(0,0,0,0.65)';
+    const eyeY = blob.h * 0.44;
+    const mY = blob.h * 0.67;
+    const mW = blob.w * 0.13;
+    const sw = Math.max(2, size * 0.028);
+    const bsw = Math.max(2, size * 0.030);
+    const ms = 'rgba(0,0,0,0.60)';
+    const dk = '#1a1a1a';
 
-    const dots = (r = eyeR) => (<>
-      <Circle cx={lEx} cy={eyeY} r={r} fill={ef} />
-      <Circle cx={rEx} cy={eyeY} r={r} fill={ef} />
-    </>);
+    // 메이플 스타일 눈: 흰자 + 동공 + 하이라이트
+    const eye = (cx: number, cy: number, pDx = 0, pDy = 0.1, r = eyeR) => {
+      const pr = pupR * (r / eyeR);
+      const px = cx + pDx * r;
+      const py = cy + pDy * r;
+      return (<>
+        <Circle cx={cx} cy={cy} r={r} fill="white" />
+        <Circle cx={px} cy={py} r={pr} fill={dk} />
+        <Circle cx={px - pr * 0.28} cy={py - pr * 0.32} r={pr * 0.28} fill="rgba(255,255,255,0.92)" />
+      </>);
+    };
 
     switch (expression) {
       case 'happy':
         return (<>
-          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${lEx+eyeR} ${eyeY} Z`} fill={ef} />
-          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${rEx+eyeR} ${eyeY} Z`} fill={ef} />
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY+mW*0.85} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${lEx+eyeR} ${eyeY} Z`} fill={dk} />
+          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${rEx+eyeR} ${eyeY} Z`} fill={dk} />
+          <Path d={`M ${fcx-mW*1.4} ${mY} Q ${fcx} ${mY+mW*1.1} ${fcx+mW*1.4} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       case 'sad':
         return (<>
-          {dots()}
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.75} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-          <Ellipse cx={lEx} cy={eyeY + eyeR + eyeR*0.9} rx={eyeR*0.22} ry={eyeR*0.48} fill="rgba(120,190,255,0.85)" />
+          {eye(lEx, eyeY, 0, 0.28)}
+          {eye(rEx, eyeY, 0, 0.28)}
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.85} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Ellipse cx={lEx + eyeR*0.05} cy={eyeY + eyeR*1.25} rx={eyeR*0.2} ry={eyeR*0.45} fill="rgba(100,180,255,0.88)" />
         </>);
       case 'angry':
         return (<>
-          {dots()}
-          <Path d={`M ${lEx-eyeR*1.0} ${eyeY-eyeR*2.2} L ${lEx+eyeR*0.8} ${eyeY-eyeR*1.35}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
-          <Path d={`M ${rEx-eyeR*0.8} ${eyeY-eyeR*1.35} L ${rEx+eyeR*1.0} ${eyeY-eyeR*2.2}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
-          <Path d={`M ${fcx-mW*0.7} ${mY} L ${fcx+mW*0.7} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
+          {eye(lEx, eyeY, -0.12, 0.12)}
+          {eye(rEx, eyeY, 0.12, 0.12)}
+          <Path d={`M ${lEx-eyeR*1.1} ${eyeY-eyeR*1.6} L ${lEx+eyeR*0.55} ${eyeY-eyeR*1.02}`} stroke={dk} strokeWidth={bsw*1.1} strokeLinecap="round" />
+          <Path d={`M ${rEx-eyeR*0.55} ${eyeY-eyeR*1.02} L ${rEx+eyeR*1.1} ${eyeY-eyeR*1.6}`} stroke={dk} strokeWidth={bsw*1.1} strokeLinecap="round" />
+          <Path d={`M ${fcx-mW} ${mY} L ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
         </>);
       case 'surprised':
         return (<>
-          {dots(eyeR * 1.35)}
-          <Circle cx={fcx} cy={mY + eyeR*0.3} r={eyeR*0.95} fill={ef} />
+          {eye(lEx, eyeY, 0, 0, eyeR*1.22)}
+          {eye(rEx, eyeY, 0, 0, eyeR*1.22)}
+          <Circle cx={fcx} cy={mY + eyeR*0.22} r={eyeR*0.72} fill={dk} />
         </>);
       case 'fear':
         return (<>
-          {dots(eyeR * 1.2)}
-          <Path d={`M ${lEx-eyeR*0.9} ${eyeY-eyeR*1.35} L ${lEx+eyeR*0.7} ${eyeY-eyeR*2.1}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
-          <Path d={`M ${rEx-eyeR*0.7} ${eyeY-eyeR*2.1} L ${rEx+eyeR*0.9} ${eyeY-eyeR*1.35}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
-          <Path d={`M ${fcx-mW*0.65} ${mY} Q ${fcx} ${mY+mW*0.5} ${fcx+mW*0.65} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          {eye(lEx, eyeY, 0.12, 0.18, eyeR*1.1)}
+          {eye(rEx, eyeY, -0.12, 0.18, eyeR*1.1)}
+          <Path d={`M ${lEx-eyeR*0.85} ${eyeY-eyeR*1.05} L ${lEx+eyeR*0.52} ${eyeY-eyeR*1.62}`} stroke={dk} strokeWidth={bsw} strokeLinecap="round" />
+          <Path d={`M ${rEx-eyeR*0.52} ${eyeY-eyeR*1.62} L ${rEx+eyeR*0.85} ${eyeY-eyeR*1.05}`} stroke={dk} strokeWidth={bsw} strokeLinecap="round" />
+          <Path d={`M ${fcx-mW*0.75} ${mY} Q ${fcx} ${mY+mW*0.62} ${fcx+mW*0.75} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       case 'disgust':
         return (<>
-          {dots()}
-          <Path d={`M ${fcx-mW} ${mY+mW*0.18} Q ${fcx-mW*0.2} ${mY+mW*0.42} ${fcx} ${mY+mW*0.22} Q ${fcx+mW*0.3} ${mY+mW*0.02} ${fcx+mW} ${mY+mW*0.2}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          {eye(lEx, eyeY, 0, 0.15)}
+          {eye(rEx, eyeY, 0, 0.15)}
+          <Path d={`M ${fcx-mW} ${mY+mW*0.2} Q ${fcx-mW*0.25} ${mY+mW*0.48} ${fcx} ${mY+mW*0.26} Q ${fcx+mW*0.32} ${mY+mW*0.06} ${fcx+mW} ${mY+mW*0.24}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       case 'contempt':
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR*0.78} fill={ef} />
-          <Circle cx={rEx} cy={eyeY} r={eyeR} fill={ef} />
-          <Path d={`M ${fcx} ${mY} Q ${fcx+mW*0.55} ${mY-mW*0.22} ${fcx+mW} ${mY-mW*0.52}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          {eye(lEx, eyeY, 0, 0, eyeR*0.82)}
+          {eye(rEx, eyeY)}
+          <Path d={`M ${fcx} ${mY} Q ${fcx+mW*0.62} ${mY-mW*0.25} ${fcx+mW*1.2} ${mY-mW*0.54}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       default:
         return (<>
-          {dots()}
-          <Path d={`M ${fcx-mW*0.6} ${mY} L ${fcx+mW*0.6} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
+          {eye(lEx, eyeY)}
+          {eye(rEx, eyeY)}
+          <Path d={`M ${fcx-mW*0.7} ${mY} L ${fcx+mW*0.7} ${mY}`} stroke={ms} strokeWidth={sw*0.82} strokeLinecap="round" />
         </>);
     }
   };
