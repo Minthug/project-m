@@ -89,6 +89,13 @@ function pickColor(expr: Expression): string {
   return palette[Math.floor(Math.random() * palette.length)] ?? palette[0];
 }
 
+function clamp(x: number, y: number, size: number) {
+  return {
+    x: Math.max(8, Math.min(x, SCREEN_WIDTH - size - 8)),
+    y: Math.max(8, Math.min(y, SCREEN_HEIGHT * 0.52 - size - 8)),
+  };
+}
+
 export const Route = createRoute('/', {
   component: Page,
 });
@@ -147,7 +154,10 @@ function Page() {
     let mounted = true;
 
     Storage.getItem('slimes').then(saved => {
-      if (mounted && saved) setSlimes(JSON.parse(saved));
+      if (mounted && saved) {
+        const loaded = JSON.parse(saved) as SlimeData[];
+        setSlimes(loaded.map(s => ({ ...s, ...clamp(s.x, s.y, s.size) })));
+      }
     });
     Storage.getItem('unlockedThemes').then(saved => {
       if (mounted && saved) setUnlockedThemeIds(JSON.parse(saved));
@@ -240,6 +250,7 @@ function Page() {
       if (target) {
         const mergedSize = Math.min(moved.size + target.size * 0.55, 190);
         eventLog({ log_name: 'slime_merged', log_type: 'event', params: { size: String(Math.round(mergedSize)) } });
+        const mergedPos = clamp((newX + target.x) / 2, (newY + target.y) / 2, mergedSize);
         return [
           ...prev.filter(s => s.id !== id && s.id !== target.id),
           {
@@ -247,15 +258,16 @@ function Page() {
             color: target.size >= moved.size ? target.color : moved.color,
             expression: target.size >= moved.size ? target.expression : moved.expression,
             size: mergedSize,
-            x: (newX + target.x) / 2,
-            y: (newY + target.y) / 2,
+            x: mergedPos.x,
+            y: mergedPos.y,
             text: target.text || moved.text || '',
             createdAt: Date.now(),
           },
         ];
       }
 
-      return prev.map(s => s.id === id ? { ...s, x: newX, y: newY } : s);
+      const clamped = clamp(newX, newY, moved.size);
+      return prev.map(s => s.id === id ? { ...s, x: clamped.x, y: clamped.y } : s);
     });
   }, []);
 
@@ -272,8 +284,8 @@ function Page() {
       const colorR = (rest.length > 0 ? rest : palette)[Math.floor(Math.random() * (rest.length || palette.length))] ?? colorL;
       return [
         ...prev.filter(s => s.id !== id),
-        { ...original, id: `split-L-${Date.now()}`, color: colorL, size: newSize, x: sx - offset, y: sy, createdAt: Date.now() },
-        { ...original, id: `split-R-${Date.now()}`, color: colorR, size: newSize, x: sx + offset, y: sy, createdAt: Date.now() },
+        { ...original, id: `split-L-${Date.now()}`, color: colorL, size: newSize, ...clamp(sx - offset, sy, newSize), createdAt: Date.now() },
+        { ...original, id: `split-R-${Date.now()}`, color: colorR, size: newSize, ...clamp(sx + offset, sy, newSize), createdAt: Date.now() },
       ];
     });
   }, []);
