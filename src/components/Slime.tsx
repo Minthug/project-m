@@ -61,72 +61,33 @@ function makeBlobPath(w: number, h: number, pts: number[]): string {
   return d + ' Z';
 }
 
-function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: string; w: number; h: number } {
-  const r = (i: number, base: number, range: number) => base + seed[i % seed.length] * range;
+// 4가지 모두 둥근 타원 기반 — 메이플스토리 슬라임 비율
+const BLOB_RATIOS: [number, number][] = [
+  [1.00, 0.90],  // 0: 기본 둥근
+  [1.10, 0.82],  // 1: 넓적 둥근
+  [0.90, 1.06],  // 2: 키 큰 둥근
+  [1.05, 0.88],  // 3: 살짝 납작 둥근
+];
 
-  switch (shape) {
-    case 0: { // 둥근형
-      const w = size, h = size * 0.88;
-      const cx = w / 2, cy = h / 2;
-      const pts = [
-        cx + r(0, -0.05, 0.1) * w, cy - r(1, 0.36, 0.1) * h,
-        cx + r(2, 0.32, 0.1) * w, cy - r(3, 0.2, 0.12) * h,
-        cx + r(4, 0.38, 0.1) * w, cy + r(5, 0.1, 0.1) * h,
-        cx + r(6, 0.15, 0.1) * w, cy + r(7, 0.35, 0.1) * h,
-        cx - r(8, 0.12, 0.1) * w, cy + r(9, 0.38, 0.1) * h,
-        cx - r(10, 0.38, 0.1) * w, cy + r(11, 0.08, 0.12) * h,
-        cx - r(12, 0.35, 0.1) * w, cy - r(13, 0.2, 0.12) * h,
-      ];
-      return { path: makeBlobPath(w, h, pts), w, h };
-    }
-    case 1: { // 넓은 납작형
-      const w = size * 1.4, h = size * 0.62;
-      const cx = w / 2, cy = h / 2;
-      const pts = [
-        cx - r(0, 0.1, 0.15) * w, cy - r(1, 0.38, 0.1) * h,
-        cx + r(2, 0.1, 0.15) * w, cy - r(3, 0.42, 0.08) * h,
-        cx + r(4, 0.44, 0.06) * w, cy - r(5, 0.1, 0.15) * h,
-        cx + r(6, 0.44, 0.06) * w, cy + r(7, 0.2, 0.15) * h,
-        cx + r(8, 0.1, 0.15) * w, cy + r(9, 0.42, 0.08) * h,
-        cx - r(10, 0.1, 0.15) * w, cy + r(11, 0.4, 0.1) * h,
-        cx - r(12, 0.44, 0.06) * w, cy + r(13, 0.15, 0.15) * h,
-        cx - r(14, 0.44, 0.06) * w, cy - r(15, 0.15, 0.15) * h,
-      ];
-      return { path: makeBlobPath(w, h, pts), w, h };
-    }
-    case 2: { // 살짝 키 큰 둥근형
-      const w = size * 0.9, h = size * 1.05;
-      const cx = w / 2, cy = h / 2;
-      const pts = [
-        cx + r(0, -0.04, 0.06) * w, cy - r(1, 0.42, 0.06) * h,
-        cx + r(2, 0.30, 0.08) * w, cy - r(3, 0.22, 0.08) * h,
-        cx + r(4, 0.40, 0.06) * w, cy + r(5, 0.06, 0.08) * h,
-        cx + r(6, 0.18, 0.08) * w, cy + r(7, 0.38, 0.06) * h,
-        cx - r(8, 0.15, 0.08) * w, cy + r(9, 0.40, 0.06) * h,
-        cx - r(10, 0.40, 0.06) * w, cy + r(11, 0.06, 0.08) * h,
-        cx - r(12, 0.32, 0.08) * w, cy - r(13, 0.22, 0.08) * h,
-      ];
-      return { path: makeBlobPath(w, h, pts), w, h };
-    }
-    case 3: { // 살짝 납작 둥근형
-      const w = size * 1.15, h = size * 0.82;
-      const cx = w / 2, cy = h / 2;
-      const pts = [
-        cx + r(0, -0.04, 0.06) * w, cy - r(1, 0.40, 0.06) * h,
-        cx + r(2, 0.28, 0.08) * w, cy - r(3, 0.32, 0.06) * h,
-        cx + r(4, 0.44, 0.04) * w, cy - r(5, 0.04, 0.08) * h,
-        cx + r(6, 0.40, 0.06) * w, cy + r(7, 0.28, 0.08) * h,
-        cx + r(8, 0.10, 0.08) * w, cy + r(9, 0.40, 0.06) * h,
-        cx - r(10, 0.08, 0.08) * w, cy + r(11, 0.40, 0.06) * h,
-        cx - r(12, 0.40, 0.06) * w, cy + r(13, 0.28, 0.08) * h,
-        cx - r(14, 0.44, 0.04) * w, cy - r(15, 0.04, 0.08) * h,
-        cx - r(16, 0.28, 0.08) * w, cy - r(17, 0.32, 0.06) * h,
-      ];
-      return { path: makeBlobPath(w, h, pts), w, h };
-    }
-    default:
-      return { path: '', w: size, h: size * 0.88 };
+function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: string; w: number; h: number } {
+  const [wr, hr] = BLOB_RATIOS[shape] ?? BLOB_RATIOS[0]!;
+  const w = size * wr;
+  const h = size * hr;
+  const cx = w / 2, cy = h / 2;
+  const n = 9;
+  const v = 0.055;
+
+  const pts: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const sv = 1 + (seed[i % seed.length]! - 0.5) * 2 * v;
+    pts.push(
+      cx + Math.cos(angle) * (w * 0.48) * sv,
+      cy + Math.sin(angle) * (h * 0.48) * sv,
+    );
   }
+
+  return { path: makeBlobPath(w, h, pts), w, h };
 }
 
 export function detectExpression(text: string): Expression {
@@ -420,16 +381,17 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const renderFace = () => {
     const fcx = blob.w / 2;
-    const eyeR = Math.max(6, size * 0.13);
-    const pupR = eyeR * 0.52;
-    const spread = blob.w * 0.20;
+    // 모든 크기 기준은 size — blob shape 관계없이 비율 일정
+    const eyeR = size * 0.155;
+    const pupR = eyeR * 0.54;
+    const spread = size * 0.22;
     const lEx = fcx - spread;
     const rEx = fcx + spread;
-    const eyeY = blob.h * 0.44;
-    const mY = blob.h * 0.67;
-    const mW = blob.w * 0.13;
-    const sw = Math.max(2, size * 0.028);
-    const bsw = Math.max(2, size * 0.030);
+    const eyeY = blob.h * 0.43;
+    const mY = blob.h * 0.72;
+    const mW = size * 0.115;
+    const sw = size * 0.032;
+    const bsw = size * 0.030;
     const ms = 'rgba(0,0,0,0.60)';
     const dk = '#1a1a1a';
 
