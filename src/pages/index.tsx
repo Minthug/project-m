@@ -1,6 +1,6 @@
 import { createRoute } from '@granite-js/react-native';
-import { getAnonymousKey, Storage } from '@apps-in-toss/framework';
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { getAnonymousKey, Storage, eventLog, loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/framework';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -26,34 +26,51 @@ const EXPRESSION_COLORS: Record<Expression, string[]> = {
   happy:     ['#7C3AED', '#DB2777', '#D97706', '#0891B2'],
 };
 
-const lightTheme = {
-  bg: '#FFF8F3',
-  slimeAreaBg: '#FFF8F3',
-  inputAreaBg: '#FFFFFF',
-  borderColor: '#F0E6DF',
-  inputBg: '#F5F0EC',
-  inputText: '#1C1917',
-  placeholderText: '#A8A29E',
-  emptyTitle: '#44403C',
-  emptySubtitle: '#A8A29E',
-  buttonDisabledBg: '#E7E0DB',
-  decorDot: 'rgba(124,58,237,0.06)',
-  headerText: '#1C1917',
-};
+interface BackgroundTheme {
+  id: string;
+  name: string;
+  bg: string;
+  dotColor: string;
+  free: boolean;
+}
 
-const darkTheme = {
-  bg: '#13111A',
-  slimeAreaBg: '#13111A',
-  inputAreaBg: '#1A1825',
-  borderColor: '#2A2535',
-  inputBg: '#211E2E',
-  inputText: '#F5F3FF',
-  placeholderText: '#6B7280',
-  emptyTitle: '#C4B5FD',
-  emptySubtitle: '#6B7280',
-  buttonDisabledBg: '#2A2535',
-  decorDot: 'rgba(124,58,237,0.12)',
-  headerText: '#EDE9FE',
+const BACKGROUND_THEMES: BackgroundTheme[] = [
+  { id: 'default',    name: '기본',   bg: '#0F0E17', dotColor: 'rgba(124,58,237,0.08)',  free: true  },
+  { id: 'deep_sea',   name: '심해',   bg: '#020B18', dotColor: 'rgba(0,100,200,0.10)',   free: false },
+  { id: 'lava',       name: '용암',   bg: '#1C0400', dotColor: 'rgba(200,40,0,0.10)',    free: false },
+  { id: 'storm',      name: '폭풍',   bg: '#08080F', dotColor: 'rgba(80,80,180,0.08)',   free: false },
+  { id: 'fog_forest', name: '안개숲', bg: '#0C1A10', dotColor: 'rgba(0,140,70,0.08)',    free: false },
+];
+
+const AD_GROUP_ID = 'YOUR_AD_GROUP_ID'; // TODO: 앱인토스 콘솔에서 발급
+
+const systemTheme = {
+  light: {
+    inputAreaBg: '#FFFFFF',
+    borderColor: '#E5E0F0',
+    inputBg: '#F5F0EC',
+    inputText: '#1C1917',
+    placeholderText: '#A8A29E',
+    emptyTitle: '#E8E0FF',
+    emptySubtitle: '#9990AA',
+    buttonDisabledBg: '#2A2535',
+    headerBg: '#FFFFFF',
+    headerText: '#1C1917',
+    headerSubText: '#6B7280',
+  },
+  dark: {
+    inputAreaBg: '#1A1825',
+    borderColor: '#2A2535',
+    inputBg: '#211E2E',
+    inputText: '#F5F3FF',
+    placeholderText: '#6B7280',
+    emptyTitle: '#C4B5FD',
+    emptySubtitle: '#6B7280',
+    buttonDisabledBg: '#2A2535',
+    headerBg: '#13111A',
+    headerText: '#EDE9FE',
+    headerSubText: '#6B7280',
+  },
 };
 
 interface SlimeData {
@@ -76,7 +93,7 @@ export const Route = createRoute('/', {
   component: Page,
 });
 
-function BackgroundDots({ theme }: { theme: typeof lightTheme }) {
+function BackgroundDots({ dotColor }: { dotColor: string }) {
   const dots = useMemo(
     () =>
       Array.from({ length: 6 }, (_, i) => ({
@@ -99,7 +116,7 @@ function BackgroundDots({ theme }: { theme: typeof lightTheme }) {
             width: dot.size,
             height: dot.size,
             borderRadius: dot.size / 2,
-            backgroundColor: theme.decorDot,
+            backgroundColor: dotColor,
             left: dot.x - dot.size / 2,
             top: dot.y - dot.size / 2,
             opacity: dot.opacity,
@@ -112,11 +129,19 @@ function BackgroundDots({ theme }: { theme: typeof lightTheme }) {
 
 function Page() {
   const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const theme = colorScheme === 'dark' ? systemTheme.dark : systemTheme.light;
 
   const [userKey, setUserKey] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [slimes, setSlimes] = useState<SlimeData[]>([]);
+
+  const [activeThemeId, setActiveThemeId] = useState('default');
+  const [unlockedThemeIds, setUnlockedThemeIds] = useState<string[]>(['default']);
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [adLoaded, setAdLoaded] = useState(false);
+  const pendingThemeIdRef = useRef<string | null>(null);
+
+  const activeTheme = BACKGROUND_THEMES.find(t => t.id === activeThemeId) ?? BACKGROUND_THEMES[0];
 
   useEffect(() => {
     let mounted = true;
@@ -124,18 +149,78 @@ function Page() {
     Storage.getItem('slimes').then(saved => {
       if (mounted && saved) setSlimes(JSON.parse(saved));
     });
+    Storage.getItem('unlockedThemes').then(saved => {
+      if (mounted && saved) setUnlockedThemeIds(JSON.parse(saved));
+    });
+    Storage.getItem('activeThemeId').then(saved => {
+      if (mounted && saved) setActiveThemeId(saved);
+    });
     getAnonymousKey().then(result => {
       if (mounted && result && result !== 'INVALID_CATEGORY' && result !== 'ERROR') {
         setUserKey(result.hash);
       }
     });
 
+    eventLog({ log_name: 'screen_view', log_type: 'screen', params: { screen: 'main' } });
+
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!loadFullScreenAd.isSupported()) return;
+    const cleanup = loadFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: () => setAdLoaded(true),
+      onError: () => setAdLoaded(false),
+    });
+    return cleanup;
   }, []);
 
   useEffect(() => {
     Storage.setItem('slimes', JSON.stringify(slimes));
   }, [slimes]);
+
+  const reloadAd = useCallback(() => {
+    if (!loadFullScreenAd.isSupported()) return;
+    setAdLoaded(false);
+    loadFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: () => setAdLoaded(true),
+      onError: () => {},
+    });
+  }, []);
+
+  const handleThemeSelect = useCallback((themeId: string) => {
+    if (unlockedThemeIds.includes(themeId)) {
+      setActiveThemeId(themeId);
+      Storage.setItem('activeThemeId', themeId);
+      setShowThemePicker(false);
+      return;
+    }
+    if (!adLoaded || !showFullScreenAd.isSupported()) return;
+
+    pendingThemeIdRef.current = themeId;
+    showFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'userEarnedReward') {
+          const id = pendingThemeIdRef.current;
+          if (!id) return;
+          setUnlockedThemeIds(prev => {
+            const next = [...prev, id];
+            Storage.setItem('unlockedThemes', JSON.stringify(next));
+            return next;
+          });
+          setActiveThemeId(id);
+          Storage.setItem('activeThemeId', id);
+          setShowThemePicker(false);
+          eventLog({ log_name: 'theme_unlocked', log_type: 'event', params: { theme_id: id } });
+          reloadAd();
+        }
+      },
+      onError: () => {},
+    });
+  }, [unlockedThemeIds, adLoaded, reloadAd]);
 
   const handleDelete = useCallback((id: string) => {
     setSlimes(prev => prev.filter(s => s.id !== id));
@@ -154,6 +239,7 @@ function Page() {
 
       if (target) {
         const mergedSize = Math.min(moved.size + target.size * 0.55, 190);
+        eventLog({ log_name: 'slime_merged', log_type: 'event', params: { size: String(Math.round(mergedSize)) } });
         return [
           ...prev.filter(s => s.id !== id && s.id !== target.id),
           {
@@ -176,6 +262,7 @@ function Page() {
   const handleSplit = useCallback((id: string, sx: number, sy: number, origSize: number) => {
     const newSize = Math.max(50, Math.floor(origSize * 0.58));
     const offset = newSize * 0.65;
+    eventLog({ log_name: 'slime_split', log_type: 'event', params: { size: String(origSize) } });
     setSlimes(prev => {
       const original = prev.find(s => s.id === id);
       if (!original) return prev;
@@ -201,6 +288,8 @@ function Page() {
     const x = Math.random() * (SCREEN_WIDTH - size - 32) + 16;
     const y = Math.random() * (SCREEN_HEIGHT * 0.52 - size - 32) + 16;
 
+    eventLog({ log_name: 'slime_created', log_type: 'event', params: { expression, text_length: String(trimmed.length) } });
+
     setSlimes(prev => [
       ...prev,
       { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed, expression, createdAt: Date.now() },
@@ -211,41 +300,73 @@ function Page() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.bg }]}
+      style={[styles.container, { backgroundColor: activeTheme.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.header, { borderBottomColor: theme.borderColor }]}>
+      <View style={[styles.header, { borderBottomColor: theme.borderColor, backgroundColor: theme.headerBg }]}>
         <Text style={[styles.headerTitle, { color: theme.headerText }]}>들어줄게</Text>
-        <Text style={[styles.headerSub, { color: theme.emptySubtitle }]}>
+        <Text style={[styles.headerSub, { color: theme.headerSubText }]}>
           {slimes.length > 0 ? `슬라임 ${slimes.length}마리` : '털어놔요'}
         </Text>
+        <View style={styles.themePickerBtn}>
+          <TouchableOpacity
+            onPress={() => setShowThemePicker(v => !v)}
+            style={styles.themeDot}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.themeDotInner, { backgroundColor: activeTheme.bg }]} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={[styles.slimeArea, { backgroundColor: theme.slimeAreaBg }]}>
-        <BackgroundDots theme={theme} />
-        {slimes.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🫧</Text>
-            <Text style={[styles.emptyTitle, { color: theme.emptyTitle }]}>
-              지금 기분이 어때요?
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: theme.emptySubtitle }]}>
-              못된 감정을 털어놓으면{'\n'}슬라임이 될 거예요
-            </Text>
-          </View>
-        ) : (
-          slimes.map(slime => (
-            <Slime
-              key={slime.id}
-              {...slime}
-              onDelete={() => handleDelete(slime.id)}
-              onMove={(nx, ny) => handleMove(slime.id, nx, ny)}
-              onSplit={(sx, sy, sz) => handleSplit(slime.id, sx, sy, sz)}
-            />
-          ))
-        )}
-      </View>
+      {showThemePicker && (
+        <View style={[styles.themePanel, { backgroundColor: theme.inputAreaBg, borderBottomColor: theme.borderColor }]}>
+          {BACKGROUND_THEMES.map(t => {
+            const unlocked = unlockedThemeIds.includes(t.id);
+            const isActive = t.id === activeThemeId;
+            return (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => handleThemeSelect(t.id)}
+                activeOpacity={0.7}
+                style={styles.themeItem}
+              >
+                <View style={[styles.themeCircle, { backgroundColor: t.bg }, isActive && styles.themeCircleActive]}>
+                  {!unlocked && <Text style={styles.themeLock}>🔒</Text>}
+                </View>
+                <Text style={[styles.themeName, { color: theme.headerSubText }]}>{t.name}</Text>
+                {!unlocked && <Text style={[styles.themeAdLabel, { color: theme.headerSubText }]}>광고</Text>}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setShowThemePicker(false); }}>
+        <View style={[styles.slimeArea, { backgroundColor: activeTheme.bg }]}>
+          <BackgroundDots dotColor={activeTheme.dotColor} />
+          {slimes.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🫧</Text>
+              <Text style={[styles.emptyTitle, { color: theme.emptyTitle }]}>
+                지금 기분이 어때요?
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: theme.emptySubtitle }]}>
+                못된 감정을 털어놓으면{'\n'}슬라임이 될 거예요
+              </Text>
+            </View>
+          ) : (
+            slimes.map(slime => (
+              <Slime
+                key={slime.id}
+                {...slime}
+                onDelete={() => handleDelete(slime.id)}
+                onMove={(nx, ny) => handleMove(slime.id, nx, ny)}
+                onSplit={(sx, sy, sz) => handleSplit(slime.id, sx, sy, sz)}
+              />
+            ))
+          )}
+        </View>
       </TouchableWithoutFeedback>
 
       <View
@@ -295,7 +416,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
   },
   headerTitle: {
@@ -306,6 +427,60 @@ const styles = StyleSheet.create({
   headerSub: {
     fontSize: 13,
     fontWeight: '500',
+    flex: 1,
+  },
+  themePickerBtn: {
+    marginLeft: 'auto',
+  },
+  themeDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0F0E17',
+  },
+  themeDotInner: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+  },
+  themePanel: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 16,
+  },
+  themeItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  themeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  themeCircleActive: {
+    borderWidth: 2.5,
+    borderColor: '#7C3AED',
+  },
+  themeLock: {
+    fontSize: 14,
+  },
+  themeName: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  themeAdLabel: {
+    fontSize: 10,
+    opacity: 0.6,
   },
   slimeArea: {
     flex: 1,
