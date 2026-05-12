@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Animated, StyleSheet, useColorScheme, PanResponder } from 'react-native';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
-import Svg, { Path, Defs, RadialGradient, Stop, Ellipse, Rect, Circle } from 'react-native-svg';
+import Svg, { Path, Defs, RadialGradient, Stop, Ellipse, Circle } from 'react-native-svg';
 
 function lighten(hex: string, amount: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
@@ -155,7 +155,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
   const idleScale = useRef(new Animated.Value(1)).current;
-  const flameFlicker = useRef(new Animated.Value(1)).current;
   // popOpacity는 inner view(native driver)에서만 사용
   const popOpacity = useRef(new Animated.Value(computeOpacity(createdAt))).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -213,24 +212,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   );
 
   const isNegative = expression === 'angry' || expression === 'sad' || expression === 'fear';
-
-  useEffect(() => {
-    if (expression !== 'angry') {
-      flameFlicker.stopAnimation();
-      flameFlicker.setValue(1);
-      return;
-    }
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flameFlicker, { toValue: 1.12, duration: 155, useNativeDriver: true }),
-        Animated.timing(flameFlicker, { toValue: 0.87, duration: 210, useNativeDriver: true }),
-        Animated.timing(flameFlicker, { toValue: 1.07, duration: 135, useNativeDriver: true }),
-        Animated.timing(flameFlicker, { toValue: 0.92, duration: 195, useNativeDriver: true }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [expression]);
 
   const shapeType = useMemo<ShapeType>(() => (Math.floor(Math.random() * 4)) as ShapeType, []);
   const shapeSeed = useMemo(() => Array.from({ length: 20 }, () => Math.random()), []);
@@ -439,96 +420,70 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const renderFace = () => {
     const fcx = blob.w / 2;
-    const fcy = blob.h * 0.43;
-    const eyeR = Math.max(4, size * 0.075);
-    const spread = blob.w * 0.18;
+    const fcy = blob.h * 0.44;
+    const eyeR = Math.max(3.5, size * 0.060);
+    const spread = blob.w * 0.165;
     const lEx = fcx - spread;
     const rEx = fcx + spread;
     const eyeY = fcy;
-    const bW = eyeR * 1.8;
-    const bH = Math.max(2, size * 0.038);
-    const bY = eyeY - eyeR * 1.7;
-    const mY = fcy + blob.h * 0.21;
-    const mW = blob.w * 0.19;
-    const sw = Math.max(2, size * 0.027);
-    const bf = 'rgba(0,0,0,0.72)';
-    const ef = '#111';
-    const gl = 'rgba(255,255,255,0.55)';
-    const gr = eyeR * 0.2;
+    const mY = fcy + blob.h * 0.20;
+    const mW = blob.w * 0.175;
+    const sw = Math.max(2.5, size * 0.036);
+    const ef = 'rgba(0,0,0,0.82)';
+    const ms = 'rgba(0,0,0,0.65)';
 
-    const eyes = (dy = 0, scale = 1) => (<>
-      <Circle cx={lEx} cy={eyeY + dy} r={eyeR * scale} fill={ef} />
-      <Circle cx={rEx} cy={eyeY + dy} r={eyeR * scale} fill={ef} />
-      <Circle cx={lEx - eyeR * 0.22 * scale} cy={eyeY + dy - eyeR * 0.28 * scale} r={gr * scale} fill={gl} />
-      <Circle cx={rEx - eyeR * 0.22 * scale} cy={eyeY + dy - eyeR * 0.28 * scale} r={gr * scale} fill={gl} />
+    const dots = (r = eyeR) => (<>
+      <Circle cx={lEx} cy={eyeY} r={r} fill={ef} />
+      <Circle cx={rEx} cy={eyeY} r={r} fill={ef} />
     </>);
 
     switch (expression) {
-      case 'angry':
-        return (<>
-          {eyes(eyeR * 0.1)}
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-30, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(30, ${rEx}, ${bY})`} />
-          <Rect x={fcx - mW} y={mY} width={mW * 2} height={bH * 0.85} fill="rgba(0,0,0,0.55)" rx={2} />
-        </>);
-      case 'sad':
-        return (<>
-          {eyes()}
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(24, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-24, ${rEx}, ${bY})`} />
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY - mW*0.65} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-          <Ellipse cx={lEx + eyeR * 0.1} cy={eyeY + eyeR * 1.5} rx={eyeR * 0.18} ry={eyeR * 0.38} fill="rgba(140,210,255,0.88)" />
-        </>);
-      case 'surprised':
-        return (<>
-          {eyes(0, 1.3)}
-          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
-          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
-          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.5} ry={mW * 0.65} fill="rgba(0,0,0,0.5)" />
-        </>);
       case 'happy':
         return (<>
           <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${lEx+eyeR} ${eyeY} Z`} fill={ef} />
           <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${rEx+eyeR} ${eyeY} Z`} fill={ef} />
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(-8, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(8, ${rEx}, ${bY})`} />
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY + mW*0.9} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.52)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY+mW*0.85} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+        </>);
+      case 'sad':
+        return (<>
+          {dots()}
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.75} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Ellipse cx={lEx} cy={eyeY + eyeR + eyeR*0.9} rx={eyeR*0.22} ry={eyeR*0.48} fill="rgba(120,190,255,0.85)" />
+        </>);
+      case 'angry':
+        return (<>
+          {dots()}
+          <Path d={`M ${lEx-eyeR*1.0} ${eyeY-eyeR*2.2} L ${lEx+eyeR*0.8} ${eyeY-eyeR*1.35}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
+          <Path d={`M ${rEx-eyeR*0.8} ${eyeY-eyeR*1.35} L ${rEx+eyeR*1.0} ${eyeY-eyeR*2.2}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
+          <Path d={`M ${fcx-mW*0.7} ${mY} L ${fcx+mW*0.7} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
+        </>);
+      case 'surprised':
+        return (<>
+          {dots(eyeR * 1.35)}
+          <Circle cx={fcx} cy={mY + eyeR*0.3} r={eyeR*0.95} fill={ef} />
         </>);
       case 'fear':
         return (<>
-          {eyes(0, 1.2)}
-          {/* 걱정형 눈썹 — 양 안쪽이 위로 올라감 */}
-          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(22, ${lEx}, ${bY - eyeR*0.45})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-22, ${rEx}, ${bY - eyeR*0.45})`} />
-          {/* 벌린 입 (공포) */}
-          <Ellipse cx={fcx} cy={mY} rx={mW * 0.55} ry={mW * 0.32} fill="rgba(0,0,0,0.45)" />
-          {/* 식은땀 */}
-          <Ellipse cx={rEx + eyeR * 1.2} cy={eyeY + eyeR * 0.5} rx={eyeR * 0.16} ry={eyeR * 0.35} fill="rgba(180,220,255,0.8)" />
+          {dots(eyeR * 1.2)}
+          <Path d={`M ${lEx-eyeR*0.9} ${eyeY-eyeR*1.35} L ${lEx+eyeR*0.7} ${eyeY-eyeR*2.1}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
+          <Path d={`M ${rEx-eyeR*0.7} ${eyeY-eyeR*2.1} L ${rEx+eyeR*0.9} ${eyeY-eyeR*1.35}`} stroke={ef} strokeWidth={sw*0.85} strokeLinecap="round" />
+          <Path d={`M ${fcx-mW*0.65} ${mY} Q ${fcx} ${mY+mW*0.5} ${fcx+mW*0.65} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       case 'disgust':
         return (<>
-          {eyes()}
-          {/* 양쪽 눈썹 낮게 찌푸림 */}
-          <Rect x={lEx - bW/2} y={bY - bH/2 + eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-15, ${lEx}, ${bY + eyeR*0.55})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2 + eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(15, ${rEx}, ${bY + eyeR*0.55})`} />
-          {/* 비대칭 역겨운 입 — 오른쪽이 살짝 올라감 */}
-          <Path d={`M ${fcx-mW} ${mY + mW*0.18} Q ${fcx} ${mY + mW*0.42} ${fcx+mW*0.4} ${mY+mW*0.28} Q ${fcx+mW*0.8} ${mY+mW*0.14} ${fcx+mW} ${mY-mW*0.08}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          {dots()}
+          <Path d={`M ${fcx-mW} ${mY+mW*0.18} Q ${fcx-mW*0.2} ${mY+mW*0.42} ${fcx} ${mY+mW*0.22} Q ${fcx+mW*0.3} ${mY+mW*0.02} ${fcx+mW} ${mY+mW*0.2}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       case 'contempt':
         return (<>
-          {eyes()}
-          {/* 왼쪽 눈썹 평범, 오른쪽만 올라감 */}
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
-          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-10, ${rEx}, ${bY - eyeR*0.45})`} />
-          {/* 오른쪽만 올라가는 비대칭 스마크 */}
-          <Path d={`M ${fcx-mW} ${mY} L ${fcx} ${mY} Q ${fcx+mW*0.55} ${mY-mW*0.18} ${fcx+mW} ${mY-mW*0.48}`} stroke="rgba(0,0,0,0.52)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Circle cx={lEx} cy={eyeY} r={eyeR*0.78} fill={ef} />
+          <Circle cx={rEx} cy={eyeY} r={eyeR} fill={ef} />
+          <Path d={`M ${fcx} ${mY} Q ${fcx+mW*0.55} ${mY-mW*0.22} ${fcx+mW} ${mY-mW*0.52}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       default:
         return (<>
-          {eyes(eyeR * 0.08)}
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
-          <Rect x={fcx - mW * 0.65} y={mY} width={mW * 1.3} height={bH * 0.8} fill="rgba(0,0,0,0.3)" rx={2} />
+          {dots()}
+          <Path d={`M ${fcx-mW*0.6} ${mY} L ${fcx+mW*0.6} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
         </>);
     }
   };
@@ -601,7 +556,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           opacity: popOpacity,
           width: blob.w,
           height: blob.h,
-          overflow: 'visible',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 8 },
           shadowRadius: 16,
@@ -632,33 +586,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           />
           {renderFace()}
         </Svg>
-        {expression === 'angry' && (() => {
-          const fw = Math.max(7, size * 0.11);
-          const fh = Math.max(10, size * 0.28);
-          const fcx = blob.w / 2;
-          const fp = (hw: number, h: number) =>
-            `M ${fcx} ${fh} C ${fcx+hw*0.88} ${fh-h*0.22} ${fcx+hw} ${fh-h*0.58} ${fcx} ${fh-h} C ${fcx-hw} ${fh-h*0.58} ${fcx-hw*0.88} ${fh-h*0.22} ${fcx} ${fh} Z`;
-          return (
-            <Animated.View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: -fh * 0.82,
-                left: fcx - fw,
-                width: fw * 2,
-                height: fh,
-                transform: [{ scaleY: flameFlicker }],
-              }}
-            >
-              <Svg width={fw * 2} height={fh}>
-                <Path d={fp(fw * 0.95, fh * 1.0)} fill="#B71C00" opacity={0.88} />
-                <Path d={fp(fw * 0.68, fh * 0.82)} fill="#FF4500" />
-                <Path d={fp(fw * 0.44, fh * 0.62)} fill="#FF8C00" />
-                <Path d={fp(fw * 0.22, fh * 0.40)} fill="#FFD600" />
-              </Svg>
-            </Animated.View>
-          );
-        })()}
       </Animated.View>
     </Animated.View>
   );
