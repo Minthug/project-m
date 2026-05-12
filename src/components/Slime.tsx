@@ -417,73 +417,70 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const renderFace = () => {
     const fcx = blob.w / 2;
-    const fcy = blob.h * 0.42;
-    const eyeR = Math.max(7, size * 0.13);
-    const pupilR = eyeR * 0.52;
-    const spread = blob.w * 0.21;
+    const fcy = blob.h * 0.43;
+    const eyeR = Math.max(4, size * 0.075);
+    const spread = blob.w * 0.18;
     const lEx = fcx - spread;
     const rEx = fcx + spread;
     const eyeY = fcy;
-    const bW = eyeR * 1.9;
-    const bH = Math.max(3.5, size * 0.058);
-    const bY = eyeY - eyeR * 1.8;
-    const mY = fcy + blob.h * 0.2;
-    const mW = blob.w * 0.22;
-    const sw = Math.max(2.5, size * 0.033);
-    const bf = 'rgba(0,0,0,0.68)';
+    const bW = eyeR * 1.8;
+    const bH = Math.max(2, size * 0.038);
+    const bY = eyeY - eyeR * 1.7;
+    const mY = fcy + blob.h * 0.21;
+    const mW = blob.w * 0.19;
+    const sw = Math.max(2, size * 0.027);
+    const bf = 'rgba(0,0,0,0.72)';
+    const ef = '#111';
+    const gl = 'rgba(255,255,255,0.55)';
+    const gr = eyeR * 0.2;
+
+    const eyes = (dy = 0) => (<>
+      <Circle cx={lEx} cy={eyeY + dy} r={eyeR} fill={ef} />
+      <Circle cx={rEx} cy={eyeY + dy} r={eyeR} fill={ef} />
+      <Circle cx={lEx - eyeR * 0.22} cy={eyeY + dy - eyeR * 0.28} r={gr} fill={gl} />
+      <Circle cx={rEx - eyeR * 0.22} cy={eyeY + dy - eyeR * 0.28} r={gr} fill={gl} />
+    </>);
 
     switch (expression) {
       case 'angry':
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={lEx} cy={eyeY + eyeR * 0.12} r={pupilR} fill="#1a1a1a" />
-          <Circle cx={rEx} cy={eyeY + eyeR * 0.12} r={pupilR} fill="#1a1a1a" />
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(-28, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(28, ${rEx}, ${bY})`} />
-          <Rect x={fcx - mW} y={mY} width={mW * 2} height={bH * 0.9} fill="rgba(0,0,0,0.58)" rx={2.5} />
+          {eyes(eyeR * 0.1)}
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-30, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(30, ${rEx}, ${bY})`} />
+          <Rect x={fcx - mW} y={mY} width={mW * 2} height={bH * 0.85} fill="rgba(0,0,0,0.55)" rx={2} />
         </>);
       case 'sad':
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={lEx} cy={eyeY + eyeR * 0.35} r={pupilR} fill="#1a1a1a" />
-          <Circle cx={rEx} cy={eyeY + eyeR * 0.35} r={pupilR} fill="#1a1a1a" />
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(22, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(-22, ${rEx}, ${bY})`} />
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.75} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.58)" strokeWidth={sw} strokeLinecap="round" fill="none" />
-          <Ellipse cx={lEx + eyeR * 0.15} cy={eyeY + eyeR * 1.45} rx={eyeR * 0.2} ry={eyeR * 0.4} fill="rgba(120,190,255,0.9)" />
+          {eyes()}
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(24, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-24, ${rEx}, ${bY})`} />
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY - mW*0.65} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Ellipse cx={lEx + eyeR * 0.1} cy={eyeY + eyeR * 1.5} rx={eyeR * 0.18} ry={eyeR * 0.38} fill="rgba(140,210,255,0.88)" />
         </>);
       case 'surprised':
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR * 1.28} fill="white" />
-          <Circle cx={rEx} cy={eyeY} r={eyeR * 1.28} fill="white" />
-          <Circle cx={lEx} cy={eyeY + eyeR * 0.1} r={pupilR * 1.2} fill="#1a1a1a" />
-          <Circle cx={rEx} cy={eyeY + eyeR * 0.1} r={pupilR * 1.2} fill="#1a1a1a" />
-          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2.5} />
-          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2.5} />
-          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.52} ry={mW * 0.68} fill="rgba(0,0,0,0.52)" />
-          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.28} ry={mW * 0.44} fill="rgba(15,0,0,0.88)" />
+          <Circle cx={lEx} cy={eyeY} r={eyeR * 1.3} fill={ef} />
+          <Circle cx={rEx} cy={eyeY} r={eyeR * 1.3} fill={ef} />
+          <Circle cx={lEx - eyeR * 0.28} cy={eyeY - eyeR * 0.35} r={gr * 1.2} fill={gl} />
+          <Circle cx={rEx - eyeR * 0.28} cy={eyeY - eyeR * 0.35} r={gr * 1.2} fill={gl} />
+          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
+          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
+          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.5} ry={mW * 0.65} fill="rgba(0,0,0,0.5)" />
         </>);
       case 'happy':
         return (<>
-          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 1 ${lEx+eyeR} ${eyeY} Z`} fill="white" />
-          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 1 ${rEx+eyeR} ${eyeY} Z`} fill="white" />
-          <Circle cx={lEx} cy={eyeY + eyeR * 0.38} r={pupilR * 0.78} fill="#1a1a1a" />
-          <Circle cx={rEx} cy={eyeY + eyeR * 0.38} r={pupilR * 0.78} fill="#1a1a1a" />
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.5)" rx={2.5} transform={`rotate(-10, ${lEx}, ${bY})`} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.5)" rx={2.5} transform={`rotate(10, ${rEx}, ${bY})`} />
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY+mW*0.95} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${lEx+eyeR} ${eyeY} Z`} fill={ef} />
+          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${rEx+eyeR} ${eyeY} Z`} fill={ef} />
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(-8, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(8, ${rEx}, ${bY})`} />
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY + mW*0.9} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.52)" strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       default:
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
-          <Circle cx={lEx} cy={eyeY + eyeR * 0.1} r={pupilR} fill="#1a1a1a" />
-          <Circle cx={rEx} cy={eyeY + eyeR * 0.1} r={pupilR} fill="#1a1a1a" />
-          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.38)" rx={2.5} />
-          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.38)" rx={2.5} />
-          <Rect x={fcx - mW * 0.7} y={mY} width={mW * 1.4} height={bH * 0.8} fill="rgba(0,0,0,0.32)" rx={2} />
+          {eyes(eyeR * 0.08)}
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
+          <Rect x={fcx - mW * 0.65} y={mY} width={mW * 1.3} height={bH * 0.8} fill="rgba(0,0,0,0.3)" rx={2} />
         </>);
     }
   };
