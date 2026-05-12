@@ -40,54 +40,40 @@ const PARTICLE_COUNT = 16;
 
 type ShapeType = 0 | 1 | 2 | 3;
 
-// SVG cubic bezier blob 생성
-function makeBlobPath(w: number, h: number, pts: number[]): string {
-  const n = pts.length / 2;
-  const xs = pts.filter((_, i) => i % 2 === 0);
-  const ys = pts.filter((_, i) => i % 2 === 1);
-
-  let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
-  for (let i = 0; i < n; i++) {
-    const p0 = { x: xs[(i - 1 + n) % n], y: ys[(i - 1 + n) % n] };
-    const p1 = { x: xs[i], y: ys[i] };
-    const p2 = { x: xs[(i + 1) % n], y: ys[(i + 1) % n] };
-    const p3 = { x: xs[(i + 2) % n], y: ys[(i + 2) % n] };
-    const cp1x = p1.x + (p2.x - p0.x) / 5;
-    const cp1y = p1.y + (p2.y - p0.y) / 5;
-    const cp2x = p2.x - (p3.x - p1.x) / 5;
-    const cp2y = p2.y - (p3.y - p1.y) / 5;
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-  }
-  return d + ' Z';
-}
-
-// 4가지 모두 둥근 타원 기반 — 메이플스토리 슬라임 비율
-const BLOB_RATIOS: [number, number][] = [
-  [1.00, 0.90],  // 0: 기본 둥근
-  [1.10, 0.82],  // 1: 넓적 둥근
-  [0.90, 1.06],  // 2: 키 큰 둥근
-  [1.05, 0.88],  // 3: 살짝 납작 둥근
+// 메이플스토리 스타일 물방울/테어드랍 형태
+// [wr, hr, tipW, sideW] — 모두 w 또는 h 비율
+const BLOB_CONFIGS: [number, number, number, number][] = [
+  [1.00, 0.96, 0.13, 0.50],  // 0: 기본 물방울
+  [1.12, 0.84, 0.17, 0.52],  // 1: 넓적한 물방울
+  [0.88, 1.08, 0.10, 0.47],  // 2: 키 큰 물방울
+  [1.06, 0.90, 0.15, 0.51],  // 3: 통통한 물방울
 ];
 
 function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: string; w: number; h: number } {
-  const [wr, hr] = BLOB_RATIOS[shape] ?? BLOB_RATIOS[0]!;
-  const w = size * wr;
-  const h = size * hr;
-  const cx = w / 2, cy = h / 2;
-  const n = 9;
-  const v = 0.055;
+  const cfg = BLOB_CONFIGS[shape] ?? BLOB_CONFIGS[0]!;
+  const [wr, hr, tipWr, sideWr] = cfg;
+  const w = size * wr, h = size * hr;
+  const cx = w / 2;
+  const v = (i: number, base: number) => base * (1 + (seed[i % seed.length]! - 0.5) * 0.09);
 
-  const pts: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-    const sv = 1 + (seed[i % seed.length]! - 0.5) * 2 * v;
-    pts.push(
-      cx + Math.cos(angle) * (w * 0.48) * sv,
-      cy + Math.sin(angle) * (h * 0.48) * sv,
-    );
-  }
+  const tipW = v(0, w * tipWr);   // 꼭대기 좌우 퍼짐 (뾰족함 조절)
+  const sideW = v(1, w * sideWr); // 최대 너비
+  const midH = v(2, h * 0.54);    // 최대 너비 y 위치
+  const topH = v(3, h * 0.20);    // 어깨 높이
+  const lowH = v(4, h * 0.80);    // 하단 곡선 시작
+  const botW = v(5, w * 0.38);    // 바닥 좌우 퍼짐
 
-  return { path: makeBlobPath(w, h, pts), w, h };
+  const f = (n: number) => n.toFixed(1);
+  const d = [
+    `M ${f(cx)} 0`,
+    `C ${f(cx+tipW)} 0 ${f(cx+sideW)} ${f(topH)} ${f(cx+sideW)} ${f(midH)}`,
+    `C ${f(cx+sideW)} ${f(lowH)} ${f(cx+botW)} ${f(h)} ${f(cx)} ${f(h)}`,
+    `C ${f(cx-botW)} ${f(h)} ${f(cx-sideW)} ${f(lowH)} ${f(cx-sideW)} ${f(midH)}`,
+    `C ${f(cx-sideW)} ${f(topH)} ${f(cx-tipW)} 0 ${f(cx)} 0`,
+    'Z',
+  ].join(' ');
+
+  return { path: d, w, h };
 }
 
 export function detectExpression(text: string): Expression {
@@ -381,18 +367,18 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const renderFace = () => {
     const fcx = blob.w / 2;
-    // 모든 크기 기준은 size — blob shape 관계없이 비율 일정
-    const eyeR = size * 0.155;
+    // 물방울 형태: 얼굴이 몸체 하단부에 위치 (위 뾰족한 부분 피함)
+    const eyeR = size * 0.095;
     const pupR = eyeR * 0.54;
-    const spread = size * 0.22;
+    const spread = size * 0.20;
     const lEx = fcx - spread;
     const rEx = fcx + spread;
-    const eyeY = blob.h * 0.43;
-    const mY = blob.h * 0.72;
-    const mW = size * 0.115;
-    const sw = size * 0.032;
-    const bsw = size * 0.030;
-    const ms = 'rgba(0,0,0,0.60)';
+    const eyeY = blob.h * 0.58;
+    const mY = blob.h * 0.76;
+    const mW = size * 0.10;
+    const sw = size * 0.030;
+    const bsw = size * 0.028;
+    const ms = 'rgba(0,0,0,0.58)';
     const dk = '#1a1a1a';
 
     // 메이플 스타일 눈: 흰자 + 동공 + 하이라이트
@@ -549,16 +535,17 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
             </RadialGradient>
           </Defs>
           <Path d={blob.path} fill="url(#grad)" />
+          {/* 메이플 스타일 광택 — 물방울 상단 좌측 */}
           <Ellipse
-            cx={blob.w * 0.34} cy={blob.h * 0.23}
-            rx={blob.w * 0.14} ry={blob.h * 0.072}
-            fill="rgba(255,255,255,0.32)"
-            transform={`rotate(-18, ${blob.w * 0.34}, ${blob.h * 0.23})`}
+            cx={blob.w * 0.38} cy={blob.h * 0.28}
+            rx={blob.w * 0.16} ry={blob.h * 0.085}
+            fill="rgba(255,255,255,0.46)"
+            transform={`rotate(-20, ${blob.w * 0.38}, ${blob.h * 0.28})`}
           />
           <Ellipse
-            cx={blob.w * 0.62} cy={blob.h * 0.17}
-            rx={blob.w * 0.052} ry={blob.h * 0.032}
-            fill="rgba(255,255,255,0.2)"
+            cx={blob.w * 0.58} cy={blob.h * 0.20}
+            rx={blob.w * 0.06} ry={blob.h * 0.036}
+            fill="rgba(255,255,255,0.30)"
           />
           {renderFace()}
         </Svg>
