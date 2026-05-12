@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
+import { Animated, View, StyleSheet, useColorScheme, PanResponder, Vibration } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
@@ -214,6 +214,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   }, [blob.w, blob.h, size]);
 
   const triggerPop = () => {
+    Vibration.vibrate([0, 40, 30, 50, 20, 80]);
     // 파티클 초기화
     particleAnims.forEach(p => {
       p.x.setValue(0);
@@ -305,6 +306,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const triggerSplit = () => {
     if (size < 70) return;
+    Vibration.vibrate([0, 20, 30, 20]);
     Animated.sequence([
       Animated.parallel([
         Animated.timing(scaleX, { toValue: 0.2, duration: 120, useNativeDriver: true }),
@@ -328,6 +330,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
       onPanResponderGrant: () => {
         isDragging.current = false;
         setIsActive(true);
+        Vibration.vibrate(12);
 
         Animated.parallel([
           Animated.spring(scaleX, { toValue: 1.2, useNativeDriver: true, tension: 400, friction: 8 }),
@@ -336,7 +339,10 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
         if (isNegative) {
           longPressTimer.current = setTimeout(() => {
-            if (!isDragging.current) triggerPop();
+            if (!isDragging.current) {
+              Vibration.vibrate([0, 30, 50, 30]);
+              triggerPop();
+            }
           }, 600);
         }
 
