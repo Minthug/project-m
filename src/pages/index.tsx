@@ -14,20 +14,17 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
-import { Slime } from '../components/Slime';
+import { Slime, detectExpression, Expression } from '../components/Slime';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const SLIME_COLORS = [
-  '#7C3AED',
-  '#DC2626',
-  '#16A34A',
-  '#D97706',
-  '#2563EB',
-  '#DB2777',
-  '#0891B2',
-  '#EA580C',
-];
+const EXPRESSION_COLORS: Record<Expression, string[]> = {
+  angry:     ['#7F1D1D', '#991B1B', '#450A0A', '#3B1F1F'],
+  sad:       ['#1E3A5F', '#312E81', '#1F2937', '#374151'],
+  surprised: ['#4C1D95', '#581C87', '#3B0764', '#2D1B69'],
+  blank:     ['#374151', '#4B5563', '#52525B', '#3F3F46'],
+  happy:     ['#7C3AED', '#DB2777', '#D97706', '#0891B2'],
+};
 
 const lightTheme = {
   bg: '#FFF8F3',
@@ -66,7 +63,13 @@ interface SlimeData {
   x: number;
   y: number;
   text: string;
+  expression: Expression;
   createdAt: number;
+}
+
+function pickColor(expr: Expression): string {
+  const palette = EXPRESSION_COLORS[expr];
+  return palette[Math.floor(Math.random() * palette.length)] ?? palette[0];
 }
 
 export const Route = createRoute('/', {
@@ -156,6 +159,7 @@ function Page() {
           {
             id: `merged-${Date.now()}`,
             color: target.size >= moved.size ? target.color : moved.color,
+            expression: target.size >= moved.size ? target.expression : moved.expression,
             size: mergedSize,
             x: (newX + target.x) / 2,
             y: (newY + target.y) / 2,
@@ -175,9 +179,10 @@ function Page() {
     setSlimes(prev => {
       const original = prev.find(s => s.id === id);
       if (!original) return prev;
-      const colorL = SLIME_COLORS[Math.floor(Math.random() * SLIME_COLORS.length)] ?? original.color;
-      const rest = SLIME_COLORS.filter(c => c !== colorL);
-      const colorR = rest[Math.floor(Math.random() * rest.length)] ?? colorL;
+      const palette = EXPRESSION_COLORS[original.expression ?? 'blank'];
+      const colorL = palette[Math.floor(Math.random() * palette.length)] ?? original.color;
+      const rest = palette.filter(c => c !== colorL);
+      const colorR = (rest.length > 0 ? rest : palette)[Math.floor(Math.random() * (rest.length || palette.length))] ?? colorL;
       return [
         ...prev.filter(s => s.id !== id),
         { ...original, id: `split-L-${Date.now()}`, color: colorL, size: newSize, x: sx - offset, y: sy, createdAt: Date.now() },
@@ -191,13 +196,14 @@ function Page() {
     if (!trimmed) return;
 
     const size = Math.min(Math.max(60, 50 + trimmed.length * 1.5), 140);
-    const color = SLIME_COLORS[Math.floor(Math.random() * SLIME_COLORS.length)] ?? SLIME_COLORS[0];
+    const expression = detectExpression(trimmed);
+    const color = pickColor(expression);
     const x = Math.random() * (SCREEN_WIDTH - size - 32) + 16;
     const y = Math.random() * (SCREEN_HEIGHT * 0.52 - size - 32) + 16;
 
     setSlimes(prev => [
       ...prev,
-      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed, createdAt: Date.now() },
+      { id: `${userKey ?? 'anon'}-${Date.now()}`, color, size, x, y, text: trimmed, expression, createdAt: Date.now() },
     ]);
     setText('');
     Keyboard.dismiss();

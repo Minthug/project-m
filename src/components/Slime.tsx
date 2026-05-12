@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
+export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
 
 interface SlimeProps {
   color: string;
@@ -117,7 +117,7 @@ function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: s
   }
 }
 
-function detectExpression(text: string): Expression {
+export function detectExpression(text: string): Expression {
   const t = text.toLowerCase();
   for (const [expr, keywords] of Object.entries(KEYWORDS) as [Expression, string[]][]) {
     if (expr === 'blank') continue;
