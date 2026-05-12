@@ -11,7 +11,7 @@ function lighten(hex: string, amount: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
+export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry' | 'fear' | 'disgust' | 'contempt';
 
 interface SlimeProps {
   color: string;
@@ -26,11 +26,14 @@ interface SlimeProps {
 }
 
 const KEYWORDS: Record<Expression, string[]> = {
-  angry: ['짜증', '열받', '빡', '화나', '싫어', '미치겠', '분노', '억울', '더럽', '진짜로', '왜이래', '어이없', '황당', '최악', '별로', '구려', '망했', '씨발', '씨바', '시발', '시바', '썅', '개새', '병신', '닥쳐', '꺼져', '죽어', '존나', '졌나', '미친놈', '미친년', '개같', '느금', '보지', '자지', '니애미', '니에미', '개소리', '헛소리', '집어쳐', '꺼지라'],
-  sad: ['슬퍼', '울고', '눈물', '힘들', '지쳐', '외로워', '우울', '그리워', '보고싶', '상처', '아파', '힘들어', '지침', '서러', '괴로', '무기력', 'ㅠㅠ', 'ㅜㅜ', 'ㅠ-ㅜ', 'ㅜ-ㅠ', 'ㅠ.ㅠ', 'ㅜ.ㅜ', 'ㅠ', 'ㅜ', 'T_T', 'TT', '흑흑', '훌쩍', '엉엉', '으앙', '으엉'],
-  surprised: ['헐', '대박', '미쳤', '말도안돼', '당황', '믿을수없', '뭐야', '진짜', '충격', '놀랐', '설마', '이게뭐', '갑자기'],
-  happy: ['좋아', '행복', '신나', '기뻐', '즐거워', '최고', '사랑', '고마워', '감사', '다행', '설레', '기대', '신남'],
-  blank: [],
+  fear:     ['무서워', '무섭다', '공포', '두려워', '겁나', '겁이나', '긴장돼', '긴장된다', '불안해', '불안하다', '떨려', '오싹', '무서운', '두렵다', '겁쟁이', '공황'],
+  disgust:  ['역겨워', '역겹다', '구역질', '혐오', '역해', '역하다', '토할것같아', '토나와', '징그러워', '징그럽다', '더러워', '역겨운', '구리다', '냄새나', '역겨'],
+  contempt: ['우습네', '우습다', '웃기지마', '웃기네', '하찮아', '하찮다', '무시해', '경멸', '코웃음', '별거아니야', '찌질'],
+  angry:    ['짜증', '열받', '빡', '화나', '싫어', '미치겠', '분노', '억울', '더럽', '진짜로', '왜이래', '어이없', '황당', '최악', '별로', '구려', '망했', '씨발', '씨바', '시발', '시바', '썅', '개새', '병신', '닥쳐', '꺼져', '죽어', '존나', '졌나', '미친놈', '미친년', '개같', '느금', '보지', '자지', '니애미', '니에미', '개소리', '헛소리', '집어쳐', '꺼지라'],
+  sad:      ['슬퍼', '울고', '눈물', '힘들', '지쳐', '외로워', '우울', '그리워', '보고싶', '상처', '아파', '힘들어', '지침', '서러', '괴로', '무기력', 'ㅠㅠ', 'ㅜㅜ', 'ㅠ-ㅜ', 'ㅜ-ㅠ', 'ㅠ.ㅠ', 'ㅜ.ㅜ', 'ㅠ', 'ㅜ', 'T_T', 'TT', '흑흑', '훌쩍', '엉엉', '으앙', '으엉'],
+  surprised:['헐', '대박', '미쳤', '말도안돼', '당황', '믿을수없', '뭐야', '진짜', '충격', '놀랐', '설마', '이게뭐', '갑자기'],
+  happy:    ['좋아', '행복', '신나', '기뻐', '즐거워', '최고', '사랑', '고마워', '감사', '다행', '설레', '기대', '신남'],
+  blank:    [],
 };
 
 const PARTICLE_COUNT = 16;
@@ -152,6 +155,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
   const idleScale = useRef(new Animated.Value(1)).current;
+  const flameFlicker = useRef(new Animated.Value(1)).current;
   // popOpacity는 inner view(native driver)에서만 사용
   const popOpacity = useRef(new Animated.Value(computeOpacity(createdAt))).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -208,7 +212,25 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     [text],
   );
 
-  const isNegative = expression === 'angry' || expression === 'sad';
+  const isNegative = expression === 'angry' || expression === 'sad' || expression === 'fear';
+
+  useEffect(() => {
+    if (expression !== 'angry') {
+      flameFlicker.stopAnimation();
+      flameFlicker.setValue(1);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flameFlicker, { toValue: 1.12, duration: 155, useNativeDriver: true }),
+        Animated.timing(flameFlicker, { toValue: 0.87, duration: 210, useNativeDriver: true }),
+        Animated.timing(flameFlicker, { toValue: 1.07, duration: 135, useNativeDriver: true }),
+        Animated.timing(flameFlicker, { toValue: 0.92, duration: 195, useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [expression]);
 
   const shapeType = useMemo<ShapeType>(() => (Math.floor(Math.random() * 4)) as ShapeType, []);
   const shapeSeed = useMemo(() => Array.from({ length: 20 }, () => Math.random()), []);
@@ -255,7 +277,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
     // 파티클 각자 흩어지기 (몸체 떨기 시작과 동시에)
     const particleAnimations = particleAnims.map((p, i) => {
-      const { dx, dy, duration, delay } = particleProps[i];
+      const { dx, dy, duration, delay } = particleProps[i]!;
       const slowDuration = duration * 2.2;
       return Animated.sequence([
         Animated.delay(delay * 1.5),
@@ -434,11 +456,11 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     const gl = 'rgba(255,255,255,0.55)';
     const gr = eyeR * 0.2;
 
-    const eyes = (dy = 0) => (<>
-      <Circle cx={lEx} cy={eyeY + dy} r={eyeR} fill={ef} />
-      <Circle cx={rEx} cy={eyeY + dy} r={eyeR} fill={ef} />
-      <Circle cx={lEx - eyeR * 0.22} cy={eyeY + dy - eyeR * 0.28} r={gr} fill={gl} />
-      <Circle cx={rEx - eyeR * 0.22} cy={eyeY + dy - eyeR * 0.28} r={gr} fill={gl} />
+    const eyes = (dy = 0, scale = 1) => (<>
+      <Circle cx={lEx} cy={eyeY + dy} r={eyeR * scale} fill={ef} />
+      <Circle cx={rEx} cy={eyeY + dy} r={eyeR * scale} fill={ef} />
+      <Circle cx={lEx - eyeR * 0.22 * scale} cy={eyeY + dy - eyeR * 0.28 * scale} r={gr * scale} fill={gl} />
+      <Circle cx={rEx - eyeR * 0.22 * scale} cy={eyeY + dy - eyeR * 0.28 * scale} r={gr * scale} fill={gl} />
     </>);
 
     switch (expression) {
@@ -459,10 +481,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
         </>);
       case 'surprised':
         return (<>
-          <Circle cx={lEx} cy={eyeY} r={eyeR * 1.3} fill={ef} />
-          <Circle cx={rEx} cy={eyeY} r={eyeR * 1.3} fill={ef} />
-          <Circle cx={lEx - eyeR * 0.28} cy={eyeY - eyeR * 0.35} r={gr * 1.2} fill={gl} />
-          <Circle cx={rEx - eyeR * 0.28} cy={eyeY - eyeR * 0.35} r={gr * 1.2} fill={gl} />
+          {eyes(0, 1.3)}
           <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
           <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.6} width={bW} height={bH} fill={bf} rx={2} />
           <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.5} ry={mW * 0.65} fill="rgba(0,0,0,0.5)" />
@@ -474,6 +493,35 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(-8, ${lEx}, ${bY})`} />
           <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.45)" rx={2} transform={`rotate(8, ${rEx}, ${bY})`} />
           <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY + mW*0.9} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.52)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+        </>);
+      case 'fear':
+        return (<>
+          {eyes(0, 1.2)}
+          {/* 걱정형 눈썹 — 양 안쪽이 위로 올라감 */}
+          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(22, ${lEx}, ${bY - eyeR*0.45})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-22, ${rEx}, ${bY - eyeR*0.45})`} />
+          {/* 벌린 입 (공포) */}
+          <Ellipse cx={fcx} cy={mY} rx={mW * 0.55} ry={mW * 0.32} fill="rgba(0,0,0,0.45)" />
+          {/* 식은땀 */}
+          <Ellipse cx={rEx + eyeR * 1.2} cy={eyeY + eyeR * 0.5} rx={eyeR * 0.16} ry={eyeR * 0.35} fill="rgba(180,220,255,0.8)" />
+        </>);
+      case 'disgust':
+        return (<>
+          {eyes()}
+          {/* 양쪽 눈썹 낮게 찌푸림 */}
+          <Rect x={lEx - bW/2} y={bY - bH/2 + eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-15, ${lEx}, ${bY + eyeR*0.55})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2 + eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(15, ${rEx}, ${bY + eyeR*0.55})`} />
+          {/* 비대칭 역겨운 입 — 오른쪽이 살짝 올라감 */}
+          <Path d={`M ${fcx-mW} ${mY + mW*0.18} Q ${fcx} ${mY + mW*0.42} ${fcx+mW*0.4} ${mY+mW*0.28} Q ${fcx+mW*0.8} ${mY+mW*0.14} ${fcx+mW} ${mY-mW*0.08}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+        </>);
+      case 'contempt':
+        return (<>
+          {eyes()}
+          {/* 왼쪽 눈썹 평범, 오른쪽만 올라감 */}
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.35)" rx={2} />
+          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.45} width={bW} height={bH} fill={bf} rx={2} transform={`rotate(-10, ${rEx}, ${bY - eyeR*0.45})`} />
+          {/* 오른쪽만 올라가는 비대칭 스마크 */}
+          <Path d={`M ${fcx-mW} ${mY} L ${fcx} ${mY} Q ${fcx+mW*0.55} ${mY-mW*0.18} ${fcx+mW} ${mY-mW*0.48}`} stroke="rgba(0,0,0,0.52)" strokeWidth={sw} strokeLinecap="round" fill="none" />
         </>);
       default:
         return (<>
@@ -524,7 +572,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     >
       {/* 파티클 레이어 */}
       {showParticles && particleAnims.map((p, i) => {
-        const { particleSize, isRect } = particleProps[i];
+        const { particleSize, isRect } = particleProps[i]!;
         return (
           <Animated.View
             key={i}
@@ -553,6 +601,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           opacity: popOpacity,
           width: blob.w,
           height: blob.h,
+          overflow: 'visible',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 8 },
           shadowRadius: 16,
@@ -583,6 +632,33 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           />
           {renderFace()}
         </Svg>
+        {expression === 'angry' && (() => {
+          const fw = Math.max(7, size * 0.11);
+          const fh = Math.max(10, size * 0.28);
+          const fcx = blob.w / 2;
+          const fp = (hw: number, h: number) =>
+            `M ${fcx} ${fh} C ${fcx+hw*0.88} ${fh-h*0.22} ${fcx+hw} ${fh-h*0.58} ${fcx} ${fh-h} C ${fcx-hw} ${fh-h*0.58} ${fcx-hw*0.88} ${fh-h*0.22} ${fcx} ${fh} Z`;
+          return (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -fh * 0.82,
+                left: fcx - fw,
+                width: fw * 2,
+                height: fh,
+                transform: [{ scaleY: flameFlicker }],
+              }}
+            >
+              <Svg width={fw * 2} height={fh}>
+                <Path d={fp(fw * 0.95, fh * 1.0)} fill="#B71C00" opacity={0.88} />
+                <Path d={fp(fw * 0.68, fh * 0.82)} fill="#FF4500" />
+                <Path d={fp(fw * 0.44, fh * 0.62)} fill="#FF8C00" />
+                <Path d={fp(fw * 0.22, fh * 0.40)} fill="#FFD600" />
+              </Svg>
+            </Animated.View>
+          );
+        })()}
       </Animated.View>
     </Animated.View>
   );

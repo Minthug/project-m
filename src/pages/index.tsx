@@ -19,11 +19,14 @@ import { Slime, detectExpression, Expression } from '../components/Slime';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const EXPRESSION_COLORS: Record<Expression, string[]> = {
-  angry:     ['#7F1D1D', '#991B1B', '#450A0A', '#3B1F1F'],
-  sad:       ['#1E3A5F', '#312E81', '#1F2937', '#374151'],
-  surprised: ['#4C1D95', '#581C87', '#3B0764', '#2D1B69'],
-  blank:     ['#374151', '#4B5563', '#52525B', '#3F3F46'],
-  happy:     ['#7C3AED', '#DB2777', '#D97706', '#0891B2'],
+  angry:    ['#7F1D1D', '#991B1B', '#450A0A', '#3B1F1F'],
+  sad:      ['#1E3A5F', '#312E81', '#1F2937', '#374151'],
+  surprised:['#4C1D95', '#581C87', '#3B0764', '#2D1B69'],
+  blank:    ['#374151', '#4B5563', '#52525B', '#3F3F46'],
+  happy:    ['#7C3AED', '#DB2777', '#D97706', '#0891B2'],
+  fear:     ['#1A0A2E', '#2D1B69', '#1E0A3C', '#0F0721'],
+  disgust:  ['#14532D', '#166534', '#1A3A1A', '#0F3D1A'],
+  contempt: ['#1C1C27', '#27272A', '#18181B', '#252530'],
 };
 
 interface BackgroundTheme {
