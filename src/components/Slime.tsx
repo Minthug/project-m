@@ -1,7 +1,15 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg';
+
+function lighten(hex: string, amount: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (num >> 16) + amount);
+  const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+  const b = Math.min(255, (num & 0xff) + amount);
+  return `rgb(${r},${g},${b})`;
+}
 
 export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry';
 
@@ -143,6 +151,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
+  const idleScale = useRef(new Animated.Value(1)).current;
   // popOpacity는 inner view(native driver)에서만 사용
   const popOpacity = useRef(new Animated.Value(computeOpacity(createdAt))).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -408,7 +417,16 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
         Animated.spring(scaleY, { toValue: 1, useNativeDriver: true, tension: 200, friction: 7 }),
       ]),
     ]);
-    anim.start();
+    anim.start(() => {
+      const wobble = Animated.loop(
+        Animated.sequence([
+          Animated.timing(idleScale, { toValue: 1.022, duration: 1900, useNativeDriver: true }),
+          Animated.timing(idleScale, { toValue: 0.978, duration: 1900, useNativeDriver: true }),
+          Animated.timing(idleScale, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        ]),
+      );
+      wobble.start();
+    });
     return () => anim.stop();
   }, []);
 
@@ -533,18 +551,34 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           width: blob.w,
           height: blob.h,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 8 },
+          shadowRadius: 16,
           shadowOpacity,
-          elevation: 10,
-          transform: [{ scaleX }, { scaleY }],
+          elevation: 14,
+          transform: [{ scaleX }, { scaleY }, { scale: idleScale }],
         }}
       >
         <Svg width={blob.w} height={blob.h} style={StyleSheet.absoluteFill}>
-          <Path d={blob.path} fill={color} />
+          <Defs>
+            <RadialGradient id="grad" cx="36%" cy="28%" r="72%">
+              <Stop offset="0%"   stopColor={lighten(color, 85)} stopOpacity="1" />
+              <Stop offset="48%"  stopColor={color}              stopOpacity="1" />
+              <Stop offset="100%" stopColor={lighten(color, -45)} stopOpacity="1" />
+            </RadialGradient>
+          </Defs>
+          <Path d={blob.path} fill="url(#grad)" />
+          <Ellipse
+            cx={blob.w * 0.34} cy={blob.h * 0.23}
+            rx={blob.w * 0.14} ry={blob.h * 0.072}
+            fill="rgba(255,255,255,0.32)"
+            transform={`rotate(-18, ${blob.w * 0.34}, ${blob.h * 0.23})`}
+          />
+          <Ellipse
+            cx={blob.w * 0.62} cy={blob.h * 0.17}
+            rx={blob.w * 0.052} ry={blob.h * 0.032}
+            fill="rgba(255,255,255,0.2)"
+          />
         </Svg>
-        {/* 광택 */}
-        <View style={{ position: 'absolute', top: blob.h * 0.1, left: blob.w * 0.18, width: blob.w * 0.26, height: blob.h * 0.13, backgroundColor: 'rgba(255,255,255,0.32)', borderRadius: size * 0.07, transform: [{ rotate: '-15deg' }] }} />
         {renderEyebrows()}
         {renderEye(eyeConfig.left)}
         {renderEye(eyeConfig.right)}
