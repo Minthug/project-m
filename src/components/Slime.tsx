@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Animated, View, StyleSheet, useColorScheme, PanResponder } from 'react-native';
+import { Animated, StyleSheet, useColorScheme, PanResponder } from 'react-native';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
-import Svg, { Path, Defs, RadialGradient, Stop, Ellipse } from 'react-native-svg';
+import Svg, { Path, Defs, RadialGradient, Stop, Ellipse, Rect, Circle } from 'react-native-svg';
 
 function lighten(hex: string, amount: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
@@ -214,14 +214,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
   const shapeSeed = useMemo(() => Array.from({ length: 20 }, () => Math.random()), []);
   const blob = useMemo(() => generateBlob(size, shapeType, shapeSeed), [size, shapeType, shapeSeed]);
 
-  const eyeConfig = useMemo(() => {
-    const w = blob.w, h = blob.h;
-    const es = size * (0.1 + Math.random() * 0.04);
-    return {
-      left:  { top: h * (0.28 + Math.random() * 0.06), left: w * (0.18 + Math.random() * 0.06), size: es },
-      right: { top: h * (0.26 + Math.random() * 0.06), left: w * (0.52 + Math.random() * 0.06), size: es },
-    };
-  }, [blob.w, blob.h, size]);
 
   const triggerPop = () => {
     generateHapticFeedback({ type: 'error' });
@@ -307,13 +299,6 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     });
   };
 
-  const getPinchDist = (touches: any[]) => {
-    if (touches.length < 2) return null;
-    const dx = touches[1].pageX - touches[0].pageX;
-    const dy = touches[1].pageY - touches[0].pageY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
   const triggerSplit = () => {
     if (size < 70) return;
     generateHapticFeedback({ type: 'basicWeak' });
@@ -373,7 +358,7 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
         pan.y.setValue(gs.dy);
       },
 
-      onPanResponderRelease: (_, gs) => {
+      onPanResponderRelease: (_evt, _gs) => {
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
         setIsActive(false);
         pan.flattenOffset();
@@ -430,55 +415,76 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     return () => anim.stop();
   }, []);
 
-  const renderEye = (cfg: { top: number; left: number; size: number }) => {
-    const pupilSize = cfg.size * 0.5;
-    const eyeHeight = expression === 'angry' ? cfg.size * 0.75 : cfg.size * 1.15;
-    const eyeWidth = expression === 'surprised' ? cfg.size * 1.2 : cfg.size;
-    return (
-      <View
-        key={`${cfg.left}`}
-        style={{ position: 'absolute', width: eyeWidth, height: eyeHeight, backgroundColor: 'white', borderRadius: cfg.size, top: cfg.top, left: cfg.left }}
-      >
-        <View style={{ position: 'absolute', width: pupilSize, height: pupilSize, backgroundColor: '#111', borderRadius: pupilSize, top: eyeHeight * 0.25, left: eyeWidth * 0.22 }} />
-      </View>
-    );
-  };
+  const renderFace = () => {
+    const fcx = blob.w / 2;
+    const fcy = blob.h * 0.42;
+    const eyeR = Math.max(7, size * 0.13);
+    const pupilR = eyeR * 0.52;
+    const spread = blob.w * 0.21;
+    const lEx = fcx - spread;
+    const rEx = fcx + spread;
+    const eyeY = fcy;
+    const bW = eyeR * 1.9;
+    const bH = Math.max(3.5, size * 0.058);
+    const bY = eyeY - eyeR * 1.8;
+    const mY = fcy + blob.h * 0.2;
+    const mW = blob.w * 0.22;
+    const sw = Math.max(2.5, size * 0.033);
+    const bf = 'rgba(0,0,0,0.68)';
 
-  const renderEyebrows = () => {
-    const bw = size * 0.15;
-    const bh = size * 0.032;
-    const lx = eyeConfig.left.left - size * 0.01;
-    const rx = eyeConfig.right.left - size * 0.01;
-    const by = eyeConfig.left.top - size * 0.1;
-    const base = { position: 'absolute' as const, width: bw, height: bh, borderRadius: 3 };
     switch (expression) {
       case 'angry':
-        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: lx, transform: [{ rotate: '25deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.55)', top: by, left: rx, transform: [{ rotate: '-25deg' }] }} /></>);
+        return (<>
+          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={lEx} cy={eyeY + eyeR * 0.12} r={pupilR} fill="#1a1a1a" />
+          <Circle cx={rEx} cy={eyeY + eyeR * 0.12} r={pupilR} fill="#1a1a1a" />
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(-28, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(28, ${rEx}, ${bY})`} />
+          <Rect x={fcx - mW} y={mY} width={mW * 2} height={bH * 0.9} fill="rgba(0,0,0,0.58)" rx={2.5} />
+        </>);
       case 'sad':
-        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: lx, transform: [{ rotate: '-20deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by, left: rx, transform: [{ rotate: '20deg' }] }} /></>);
+        return (<>
+          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={lEx} cy={eyeY + eyeR * 0.35} r={pupilR} fill="#1a1a1a" />
+          <Circle cx={rEx} cy={eyeY + eyeR * 0.35} r={pupilR} fill="#1a1a1a" />
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(22, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill={bf} rx={2.5} transform={`rotate(-22, ${rEx}, ${bY})`} />
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.75} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.58)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+          <Ellipse cx={lEx + eyeR * 0.15} cy={eyeY + eyeR * 1.45} rx={eyeR * 0.2} ry={eyeR * 0.4} fill="rgba(120,190,255,0.9)" />
+        </>);
       case 'surprised':
-        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: lx }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.4)', top: by - size * 0.05, left: rx }} /></>);
+        return (<>
+          <Circle cx={lEx} cy={eyeY} r={eyeR * 1.28} fill="white" />
+          <Circle cx={rEx} cy={eyeY} r={eyeR * 1.28} fill="white" />
+          <Circle cx={lEx} cy={eyeY + eyeR * 0.1} r={pupilR * 1.2} fill="#1a1a1a" />
+          <Circle cx={rEx} cy={eyeY + eyeR * 0.1} r={pupilR * 1.2} fill="#1a1a1a" />
+          <Rect x={lEx - bW/2} y={bY - bH/2 - eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2.5} />
+          <Rect x={rEx - bW/2} y={bY - bH/2 - eyeR * 0.55} width={bW} height={bH} fill={bf} rx={2.5} />
+          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.52} ry={mW * 0.68} fill="rgba(0,0,0,0.52)" />
+          <Ellipse cx={fcx} cy={mY + mW * 0.2} rx={mW * 0.28} ry={mW * 0.44} fill="rgba(15,0,0,0.88)" />
+        </>);
       case 'happy':
-        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: lx, transform: [{ rotate: '-8deg' }] }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.3)', top: by - size * 0.02, left: rx, transform: [{ rotate: '8deg' }] }} /></>);
+        return (<>
+          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 1 ${lEx+eyeR} ${eyeY} Z`} fill="white" />
+          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 1 ${rEx+eyeR} ${eyeY} Z`} fill="white" />
+          <Circle cx={lEx} cy={eyeY + eyeR * 0.38} r={pupilR * 0.78} fill="#1a1a1a" />
+          <Circle cx={rEx} cy={eyeY + eyeR * 0.38} r={pupilR * 0.78} fill="#1a1a1a" />
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.5)" rx={2.5} transform={`rotate(-10, ${lEx}, ${bY})`} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.5)" rx={2.5} transform={`rotate(10, ${rEx}, ${bY})`} />
+          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY+mW*0.95} ${fcx+mW} ${mY}`} stroke="rgba(0,0,0,0.55)" strokeWidth={sw} strokeLinecap="round" fill="none" />
+        </>);
       default:
-        return (<><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: lx }} /><View style={{ ...base, backgroundColor: 'rgba(0,0,0,0.28)', top: by, left: rx }} /></>);
-    }
-  };
-
-  const renderMouth = () => {
-    const mouthY = blob.h * 0.62;
-    const mcx = blob.w / 2;
-    switch (expression) {
-      case 'happy':
-        return <View style={{ position: 'absolute', width: size * 0.38, height: size * 0.2, borderBottomLeftRadius: size * 0.2, borderBottomRightRadius: size * 0.2, borderWidth: size * 0.03, borderTopWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY, left: mcx - size * 0.19 }} />;
-      case 'sad':
-        return (<><View style={{ position: 'absolute', width: size * 0.3, height: size * 0.16, borderTopLeftRadius: size * 0.16, borderTopRightRadius: size * 0.16, borderWidth: size * 0.03, borderBottomWidth: 0, borderColor: 'rgba(0,0,0,0.4)', top: mouthY + size * 0.04, left: mcx - size * 0.15 }} /><View style={{ position: 'absolute', width: size * 0.055, height: size * 0.08, backgroundColor: 'rgba(100,180,255,0.85)', borderBottomLeftRadius: size * 0.04, borderBottomRightRadius: size * 0.04, borderTopLeftRadius: size * 0.02, borderTopRightRadius: size * 0.02, top: eyeConfig.left.top + eyeConfig.left.size + size * 0.01, left: eyeConfig.left.left + eyeConfig.left.size * 0.2 }} /></>);
-      case 'surprised':
-        return <View style={{ position: 'absolute', width: size * 0.22, height: size * 0.24, borderRadius: size * 0.12, backgroundColor: 'rgba(0,0,0,0.35)', top: mouthY, left: mcx - size * 0.11 }} />;
-      case 'angry':
-        return (<><View style={{ position: 'absolute', width: size * 0.28, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.02, left: mcx - size * 0.14 }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: mcx - size * 0.2, transform: [{ rotate: '40deg' }] }} /><View style={{ position: 'absolute', width: size * 0.08, height: size * 0.03, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 2, top: mouthY + size * 0.03, left: mcx + size * 0.12, transform: [{ rotate: '-40deg' }] }} /></>);
-      default:
-        return <View style={{ position: 'absolute', width: size * 0.2, height: size * 0.025, backgroundColor: 'rgba(0,0,0,0.28)', borderRadius: 2, top: mouthY + size * 0.02, left: mcx - size * 0.1 }} />;
+        return (<>
+          <Circle cx={lEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={rEx} cy={eyeY} r={eyeR} fill="white" />
+          <Circle cx={lEx} cy={eyeY + eyeR * 0.1} r={pupilR} fill="#1a1a1a" />
+          <Circle cx={rEx} cy={eyeY + eyeR * 0.1} r={pupilR} fill="#1a1a1a" />
+          <Rect x={lEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.38)" rx={2.5} />
+          <Rect x={rEx - bW/2} y={bY - bH/2} width={bW} height={bH} fill="rgba(0,0,0,0.38)" rx={2.5} />
+          <Rect x={fcx - mW * 0.7} y={mY} width={mW * 1.4} height={bH * 0.8} fill="rgba(0,0,0,0.32)" rx={2} />
+        </>);
     }
   };
 
@@ -578,11 +584,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
             rx={blob.w * 0.052} ry={blob.h * 0.032}
             fill="rgba(255,255,255,0.2)"
           />
+          {renderFace()}
         </Svg>
-        {renderEyebrows()}
-        {renderEye(eyeConfig.left)}
-        {renderEye(eyeConfig.right)}
-        {renderMouth()}
       </Animated.View>
     </Animated.View>
   );
