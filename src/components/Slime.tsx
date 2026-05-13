@@ -1,15 +1,10 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Animated, StyleSheet, useColorScheme, PanResponder } from 'react-native';
+import { Animated, StyleSheet, useColorScheme, PanResponder, Image } from 'react-native';
 import { generateHapticFeedback } from '@apps-in-toss/native-modules';
-import Svg, { Path, Defs, RadialGradient, Stop, Ellipse, Circle } from 'react-native-svg';
+import { SLIME_URI } from '../assets/slime-images';
 
-function lighten(hex: string, amount: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.min(255, (num >> 16) + amount);
-  const g = Math.min(255, ((num >> 8) & 0xff) + amount);
-  const b = Math.min(255, (num & 0xff) + amount);
-  return `rgb(${r},${g},${b})`;
-}
+const SLIME_IMAGES = SLIME_URI;
+
 
 export type Expression = 'happy' | 'sad' | 'surprised' | 'blank' | 'angry' | 'fear' | 'disgust' | 'contempt';
 
@@ -38,43 +33,7 @@ const KEYWORDS: Record<Expression, string[]> = {
 
 const PARTICLE_COUNT = 16;
 
-type ShapeType = 0 | 1 | 2 | 3;
-
-// 메이플스토리 스타일 물방울/테어드랍 형태
-// [wr, hr, tipW, sideW] — 모두 w 또는 h 비율
-const BLOB_CONFIGS: [number, number, number, number][] = [
-  [1.00, 0.96, 0.13, 0.50],  // 0: 기본 물방울
-  [1.12, 0.84, 0.17, 0.52],  // 1: 넓적한 물방울
-  [0.88, 1.08, 0.10, 0.47],  // 2: 키 큰 물방울
-  [1.06, 0.90, 0.15, 0.51],  // 3: 통통한 물방울
-];
-
-function generateBlob(size: number, shape: ShapeType, seed: number[]): { path: string; w: number; h: number } {
-  const cfg = BLOB_CONFIGS[shape] ?? BLOB_CONFIGS[0]!;
-  const [wr, hr, tipWr, sideWr] = cfg;
-  const w = size * wr, h = size * hr;
-  const cx = w / 2;
-  const v = (i: number, base: number) => base * (1 + (seed[i % seed.length]! - 0.5) * 0.09);
-
-  const tipW = v(0, w * tipWr);   // 꼭대기 좌우 퍼짐 (뾰족함 조절)
-  const sideW = v(1, w * sideWr); // 최대 너비
-  const midH = v(2, h * 0.54);    // 최대 너비 y 위치
-  const topH = v(3, h * 0.20);    // 어깨 높이
-  const lowH = v(4, h * 0.80);    // 하단 곡선 시작
-  const botW = v(5, w * 0.38);    // 바닥 좌우 퍼짐
-
-  const f = (n: number) => n.toFixed(1);
-  const d = [
-    `M ${f(cx)} 0`,
-    `C ${f(cx+tipW)} 0 ${f(cx+sideW)} ${f(topH)} ${f(cx+sideW)} ${f(midH)}`,
-    `C ${f(cx+sideW)} ${f(lowH)} ${f(cx+botW)} ${f(h)} ${f(cx)} ${f(h)}`,
-    `C ${f(cx-botW)} ${f(h)} ${f(cx-sideW)} ${f(lowH)} ${f(cx-sideW)} ${f(midH)}`,
-    `C ${f(cx-sideW)} ${f(topH)} ${f(cx-tipW)} 0 ${f(cx)} 0`,
-    'Z',
-  ].join(' ');
-
-  return { path: d, w, h };
-}
+const SLIME_ASPECT = 0.82;
 
 export function detectExpression(text: string): Expression {
   const t = text.toLowerCase();
@@ -85,25 +44,49 @@ export function detectExpression(text: string): Expression {
   return 'blank';
 }
 
-function computeOpacity(createdAt?: number): number {
-  if (!createdAt) return 1;
-  const FADE_AFTER = 2 * 60 * 60 * 1000;
-  const FULL_FADE = 24 * 60 * 60 * 1000;
-  const age = Date.now() - createdAt;
-  if (age < FADE_AFTER) return 1;
-  const progress = Math.min((age - FADE_AFTER) / (FULL_FADE - FADE_AFTER), 1);
-  return Math.max(0.35, 1 - progress * 0.65);
+// 자정 기준 경과 일수 계산
+function getDayAge(createdAt?: number): number {
+  if (!createdAt) return 0;
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const created = new Date(createdAt);
+  const createdMidnight = new Date(created.getFullYear(), created.getMonth(), created.getDate()).getTime();
+  return Math.floor((todayMidnight - createdMidnight) / (24 * 60 * 60 * 1000));
+}
+
+// Day 0=1.0, Day 1=0.8, Day 3=0.5, Day 6=0.2, Day 7+=0
+function computeOpacityByAge(dayAge: number): number {
+  if (dayAge <= 0) return 1.0;
+  if (dayAge === 1) return 0.8;
+  if (dayAge === 2) return 0.65;
+  if (dayAge === 3) return 0.5;
+  if (dayAge === 4) return 0.4;
+  if (dayAge === 5) return 0.3;
+  if (dayAge === 6) return 0.2;
+  return 0;
+}
+
+// 나이 들수록 느리게 숨쉬기
+function getIdleWobbleDuration(dayAge: number): number {
+  if (dayAge <= 0) return 1900;
+  if (dayAge === 1) return 2600;
+  if (dayAge === 2) return 3400;
+  return 4800;
 }
 
 export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, onSplit }: SlimeProps) {
   const colorScheme = useColorScheme();
   const shadowOpacity = colorScheme === 'dark' ? 0.45 : 0.2;
 
+  const dayAge = useMemo(() => getDayAge(createdAt), [createdAt]);
+  const initialOpacity = useMemo(() => computeOpacityByAge(dayAge), [dayAge]);
+  const wobbleDuration = useMemo(() => getIdleWobbleDuration(dayAge), [dayAge]);
+
   const scaleX = useRef(new Animated.Value(0)).current;
   const scaleY = useRef(new Animated.Value(0)).current;
   const idleScale = useRef(new Animated.Value(1)).current;
   // popOpacity는 inner view(native driver)에서만 사용
-  const popOpacity = useRef(new Animated.Value(computeOpacity(createdAt))).current;
+  const popOpacity = useRef(new Animated.Value(initialOpacity)).current;
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const isDragging = useRef(false);
@@ -160,9 +143,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
 
   const isNegative = expression === 'angry' || expression === 'sad' || expression === 'fear';
 
-  const shapeType = useMemo<ShapeType>(() => (Math.floor(Math.random() * 4)) as ShapeType, []);
-  const shapeSeed = useMemo(() => Array.from({ length: 20 }, () => Math.random()), []);
-  const blob = useMemo(() => generateBlob(size, shapeType, shapeSeed), [size, shapeType, shapeSeed]);
+  const imgW = size * SLIME_ASPECT;
+  const imgH = size;
 
 
   const triggerPop = () => {
@@ -355,9 +337,9 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     anim.start(() => {
       const wobble = Animated.loop(
         Animated.sequence([
-          Animated.timing(idleScale, { toValue: 1.022, duration: 1900, useNativeDriver: true }),
-          Animated.timing(idleScale, { toValue: 0.978, duration: 1900, useNativeDriver: true }),
-          Animated.timing(idleScale, { toValue: 1, duration: 1200, useNativeDriver: true }),
+          Animated.timing(idleScale, { toValue: 1.022, duration: wobbleDuration, useNativeDriver: true }),
+          Animated.timing(idleScale, { toValue: 0.978, duration: wobbleDuration, useNativeDriver: true }),
+          Animated.timing(idleScale, { toValue: 1, duration: wobbleDuration * 0.63, useNativeDriver: true }),
         ]),
       );
       wobble.start();
@@ -365,93 +347,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
     return () => anim.stop();
   }, []);
 
-  const renderFace = () => {
-    const fcx = blob.w / 2;
-    // 물방울 형태: 얼굴이 몸체 하단부에 위치 (위 뾰족한 부분 피함)
-    const eyeR = size * 0.095;
-    const pupR = eyeR * 0.54;
-    const spread = size * 0.20;
-    const lEx = fcx - spread;
-    const rEx = fcx + spread;
-    const eyeY = blob.h * 0.58;
-    const mY = blob.h * 0.76;
-    const mW = size * 0.10;
-    const sw = size * 0.030;
-    const bsw = size * 0.028;
-    const ms = 'rgba(0,0,0,0.58)';
-    const dk = '#1a1a1a';
-
-    // 메이플 스타일 눈: 흰자 + 동공 + 하이라이트
-    const eye = (cx: number, cy: number, pDx = 0, pDy = 0.1, r = eyeR) => {
-      const pr = pupR * (r / eyeR);
-      const px = cx + pDx * r;
-      const py = cy + pDy * r;
-      return (<>
-        <Circle cx={cx} cy={cy} r={r} fill="white" />
-        <Circle cx={px} cy={py} r={pr} fill={dk} />
-        <Circle cx={px - pr * 0.28} cy={py - pr * 0.32} r={pr * 0.28} fill="rgba(255,255,255,0.92)" />
-      </>);
-    };
-
-    switch (expression) {
-      case 'happy':
-        return (<>
-          <Path d={`M ${lEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${lEx+eyeR} ${eyeY} Z`} fill={dk} />
-          <Path d={`M ${rEx-eyeR} ${eyeY} A ${eyeR} ${eyeR} 0 0 0 ${rEx+eyeR} ${eyeY} Z`} fill={dk} />
-          <Path d={`M ${fcx-mW*1.4} ${mY} Q ${fcx} ${mY+mW*1.1} ${fcx+mW*1.4} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-        </>);
-      case 'sad':
-        return (<>
-          {eye(lEx, eyeY, 0, 0.28)}
-          {eye(rEx, eyeY, 0, 0.28)}
-          <Path d={`M ${fcx-mW} ${mY} Q ${fcx} ${mY-mW*0.85} ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-          <Ellipse cx={lEx + eyeR*0.05} cy={eyeY + eyeR*1.25} rx={eyeR*0.2} ry={eyeR*0.45} fill="rgba(100,180,255,0.88)" />
-        </>);
-      case 'angry':
-        return (<>
-          {eye(lEx, eyeY, -0.12, 0.12)}
-          {eye(rEx, eyeY, 0.12, 0.12)}
-          <Path d={`M ${lEx-eyeR*1.1} ${eyeY-eyeR*1.6} L ${lEx+eyeR*0.55} ${eyeY-eyeR*1.02}`} stroke={dk} strokeWidth={bsw*1.1} strokeLinecap="round" />
-          <Path d={`M ${rEx-eyeR*0.55} ${eyeY-eyeR*1.02} L ${rEx+eyeR*1.1} ${eyeY-eyeR*1.6}`} stroke={dk} strokeWidth={bsw*1.1} strokeLinecap="round" />
-          <Path d={`M ${fcx-mW} ${mY} L ${fcx+mW} ${mY}`} stroke={ms} strokeWidth={sw*0.85} strokeLinecap="round" />
-        </>);
-      case 'surprised':
-        return (<>
-          {eye(lEx, eyeY, 0, 0, eyeR*1.22)}
-          {eye(rEx, eyeY, 0, 0, eyeR*1.22)}
-          <Circle cx={fcx} cy={mY + eyeR*0.22} r={eyeR*0.72} fill={dk} />
-        </>);
-      case 'fear':
-        return (<>
-          {eye(lEx, eyeY, 0.12, 0.18, eyeR*1.1)}
-          {eye(rEx, eyeY, -0.12, 0.18, eyeR*1.1)}
-          <Path d={`M ${lEx-eyeR*0.85} ${eyeY-eyeR*1.05} L ${lEx+eyeR*0.52} ${eyeY-eyeR*1.62}`} stroke={dk} strokeWidth={bsw} strokeLinecap="round" />
-          <Path d={`M ${rEx-eyeR*0.52} ${eyeY-eyeR*1.62} L ${rEx+eyeR*0.85} ${eyeY-eyeR*1.05}`} stroke={dk} strokeWidth={bsw} strokeLinecap="round" />
-          <Path d={`M ${fcx-mW*0.75} ${mY} Q ${fcx} ${mY+mW*0.62} ${fcx+mW*0.75} ${mY}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-        </>);
-      case 'disgust':
-        return (<>
-          {eye(lEx, eyeY, 0, 0.15)}
-          {eye(rEx, eyeY, 0, 0.15)}
-          <Path d={`M ${fcx-mW} ${mY+mW*0.2} Q ${fcx-mW*0.25} ${mY+mW*0.48} ${fcx} ${mY+mW*0.26} Q ${fcx+mW*0.32} ${mY+mW*0.06} ${fcx+mW} ${mY+mW*0.24}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-        </>);
-      case 'contempt':
-        return (<>
-          {eye(lEx, eyeY, 0, 0, eyeR*0.82)}
-          {eye(rEx, eyeY)}
-          <Path d={`M ${fcx} ${mY} Q ${fcx+mW*0.62} ${mY-mW*0.25} ${fcx+mW*1.2} ${mY-mW*0.54}`} stroke={ms} strokeWidth={sw} strokeLinecap="round" fill="none" />
-        </>);
-      default:
-        return (<>
-          {eye(lEx, eyeY)}
-          {eye(rEx, eyeY)}
-          <Path d={`M ${fcx-mW*0.7} ${mY} L ${fcx+mW*0.7} ${mY}`} stroke={ms} strokeWidth={sw*0.82} strokeLinecap="round" />
-        </>);
-    }
-  };
-
-  const cx = blob.w / 2;
-  const cy = blob.h / 2;
+  const cx = imgW / 2;
+  const cy = imgH / 2;
 
   return (
     <Animated.View
@@ -468,16 +365,16 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
         const t = evt.nativeEvent.touches;
         if (t.length >= 2) {
           if (longPressTimer.current) clearTimeout(longPressTimer.current);
-          const dx = t[1].pageX - t[0].pageX;
-          const dy = t[1].pageY - t[0].pageY;
+          const dx = t[1]!.pageX - t[0]!.pageX;
+          const dy = t[1]!.pageY - t[0]!.pageY;
           initialPinchDist.current = Math.sqrt(dx * dx + dy * dy);
         }
       }}
       onTouchMove={(evt) => {
         const t = evt.nativeEvent.touches;
         if (t.length >= 2 && initialPinchDist.current !== null) {
-          const dx = t[1].pageX - t[0].pageX;
-          const dy = t[1].pageY - t[0].pageY;
+          const dx = t[1]!.pageX - t[0]!.pageX;
+          const dy = t[1]!.pageY - t[0]!.pageY;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist - initialPinchDist.current > 30) {
             initialPinchDist.current = null;
@@ -516,8 +413,8 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
       <Animated.View
         style={{
           opacity: popOpacity,
-          width: blob.w,
-          height: blob.h,
+          width: imgW,
+          height: imgH,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 8 },
           shadowRadius: 16,
@@ -526,29 +423,11 @@ export function Slime({ color, size, x, y, text, createdAt, onDelete, onMove, on
           transform: [{ scaleX }, { scaleY }, { scale: idleScale }],
         }}
       >
-        <Svg width={blob.w} height={blob.h} style={StyleSheet.absoluteFill}>
-          <Defs>
-            <RadialGradient id="grad" cx="36%" cy="28%" r="72%">
-              <Stop offset="0%"   stopColor={lighten(color, 85)} stopOpacity="1" />
-              <Stop offset="48%"  stopColor={color}              stopOpacity="1" />
-              <Stop offset="100%" stopColor={lighten(color, -45)} stopOpacity="1" />
-            </RadialGradient>
-          </Defs>
-          <Path d={blob.path} fill="url(#grad)" />
-          {/* 메이플 스타일 광택 — 물방울 상단 좌측 */}
-          <Ellipse
-            cx={blob.w * 0.38} cy={blob.h * 0.28}
-            rx={blob.w * 0.16} ry={blob.h * 0.085}
-            fill="rgba(255,255,255,0.46)"
-            transform={`rotate(-20, ${blob.w * 0.38}, ${blob.h * 0.28})`}
-          />
-          <Ellipse
-            cx={blob.w * 0.58} cy={blob.h * 0.20}
-            rx={blob.w * 0.06} ry={blob.h * 0.036}
-            fill="rgba(255,255,255,0.30)"
-          />
-          {renderFace()}
-        </Svg>
+        <Image
+          source={SLIME_IMAGES[expression]}
+          style={{ width: imgW, height: imgH }}
+          resizeMode="contain"
+        />
       </Animated.View>
     </Animated.View>
   );
@@ -558,11 +437,5 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     overflow: 'visible',
-  },
-  blob: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 10,
-    elevation: 10,
   },
 });

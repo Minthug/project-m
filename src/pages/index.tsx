@@ -159,7 +159,15 @@ function Page() {
     Storage.getItem('slimes').then(saved => {
       if (mounted && saved) {
         const loaded = JSON.parse(saved) as SlimeData[];
-        setSlimes(loaded.map(s => ({ ...s, ...clamp(s.x, s.y, s.size) })));
+        const now = new Date();
+        const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const alive = loaded.filter(s => {
+          if (!s.createdAt) return true;
+          const d = new Date(s.createdAt);
+          const dayAge = Math.floor((todayMidnight - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+          return dayAge < 7;
+        });
+        setSlimes(alive.map(s => ({ ...s, ...clamp(s.x, s.y, s.size) })));
       }
     });
     Storage.getItem('unlockedThemes').then(saved => {
