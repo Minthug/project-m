@@ -10,9 +10,9 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Platform,
-  useColorScheme,
   Keyboard,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { Slime, detectExpression, Expression } from '../components/Slime';
 
@@ -38,7 +38,7 @@ interface BackgroundTheme {
 }
 
 const BACKGROUND_THEMES: BackgroundTheme[] = [
-  { id: 'default',    name: '기본',   bg: '#0F0E17', dotColor: 'rgba(124,58,237,0.08)',  free: true  },
+  { id: 'default',    name: '기본',   bg: '#F0EDE6', dotColor: 'rgba(120,100,80,0.07)',  free: true  },
   { id: 'deep_sea',   name: '심해',   bg: '#020B18', dotColor: 'rgba(0,100,200,0.10)',   free: false },
   { id: 'lava',       name: '용암',   bg: '#1C0400', dotColor: 'rgba(200,40,0,0.10)',    free: false },
   { id: 'storm',      name: '폭풍',   bg: '#08080F', dotColor: 'rgba(80,80,180,0.08)',   free: false },
@@ -47,33 +47,18 @@ const BACKGROUND_THEMES: BackgroundTheme[] = [
 
 const AD_GROUP_ID = 'YOUR_AD_GROUP_ID'; // TODO: 앱인토스 콘솔에서 발급
 
-const systemTheme = {
-  light: {
-    inputAreaBg: '#FFFFFF',
-    borderColor: '#E5E0F0',
-    inputBg: '#F5F0EC',
-    inputText: '#1C1917',
-    placeholderText: '#A8A29E',
-    emptyTitle: '#E8E0FF',
-    emptySubtitle: '#9990AA',
-    buttonDisabledBg: '#2A2535',
-    headerBg: '#FFFFFF',
-    headerText: '#1C1917',
-    headerSubText: '#6B7280',
-  },
-  dark: {
-    inputAreaBg: '#1A1825',
-    borderColor: '#2A2535',
-    inputBg: '#211E2E',
-    inputText: '#F5F3FF',
-    placeholderText: '#6B7280',
-    emptyTitle: '#C4B5FD',
-    emptySubtitle: '#6B7280',
-    buttonDisabledBg: '#2A2535',
-    headerBg: '#13111A',
-    headerText: '#EDE9FE',
-    headerSubText: '#6B7280',
-  },
+const canvasTheme = {
+  inputAreaBg: '#FFFFFF',
+  borderColor: '#E2DDD6',
+  inputBg: '#EDE9E3',
+  inputText: '#1C1917',
+  placeholderText: '#A8A29E',
+  emptyTitle: '#4C4558',
+  emptySubtitle: '#8B85A0',
+  buttonDisabledBg: '#E2DDD6',
+  headerBg: '#FFFFFF',
+  headerText: '#1C1917',
+  headerSubText: '#78716C',
 };
 
 interface SlimeData {
@@ -102,6 +87,94 @@ function clamp(x: number, y: number, size: number) {
 export const Route = createRoute('/', {
   component: Page,
 });
+
+const ATMO_COLORS: Record<Expression, string> = {
+  angry:    'rgba(220, 38, 38, 0.09)',
+  sad:      'rgba(37, 99, 235, 0.09)',
+  fear:     'rgba(79, 70, 229, 0.09)',
+  happy:    'rgba(219, 39, 119, 0.07)',
+  disgust:  'rgba(22, 163, 74, 0.07)',
+  surprised:'rgba(147, 51, 234, 0.09)',
+  contempt: 'rgba(100, 116, 139, 0.07)',
+  blank:    'rgba(107, 114, 128, 0.05)',
+};
+
+const ATMO_BLOBS = [
+  { size: 380, left: SCREEN_WIDTH * 0.20 - 190, top: -20 },
+  { size: 300, left: SCREEN_WIDTH * 0.78 - 150, top: -40 },
+  { size: 340, left: SCREEN_WIDTH * 0.08 - 170, top: SCREEN_HEIGHT * 0.18 },
+  { size: 320, left: SCREEN_WIDTH * 0.72 - 160, top: SCREEN_HEIGHT * 0.16 },
+  { size: 270, left: SCREEN_WIDTH * 0.44 - 135, top: SCREEN_HEIGHT * 0.10 },
+];
+
+function EmotionAtmosphere({ expression }: { expression: Expression | null }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const [activeColor, setActiveColor] = useState('transparent');
+  const hasShownRef = useRef(false);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const blobOffsets = useRef(
+    ATMO_BLOBS.map(() => ({ x: new Animated.Value(0), y: new Animated.Value(0) }))
+  ).current;
+
+  useEffect(() => {
+    blobOffsets.forEach((offset, i) => {
+      const drift = () => {
+        Animated.parallel([
+          Animated.timing(offset.x, { toValue: (Math.random() - 0.5) * 90, duration: 7000 + i * 900, useNativeDriver: true }),
+          Animated.timing(offset.y, { toValue: (Math.random() - 0.5) * 55, duration: 7000 + i * 900, useNativeDriver: true }),
+        ]).start(({ finished }) => { if (finished) drift(); });
+      };
+      setTimeout(() => drift(), i * 500);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (animRef.current) animRef.current.stop();
+
+    if (!expression) {
+      animRef.current = Animated.timing(opacity, { toValue: 0, duration: 2000, useNativeDriver: true });
+      animRef.current.start();
+      return;
+    }
+
+    const newColor = ATMO_COLORS[expression];
+
+    if (!hasShownRef.current) {
+      hasShownRef.current = true;
+      setActiveColor(newColor);
+      animRef.current = Animated.timing(opacity, { toValue: 1, duration: 3500, useNativeDriver: true });
+      animRef.current.start();
+    } else {
+      animRef.current = Animated.timing(opacity, { toValue: 0, duration: 1200, useNativeDriver: true });
+      animRef.current.start(() => {
+        setActiveColor(newColor);
+        animRef.current = Animated.timing(opacity, { toValue: 1, duration: 3500, useNativeDriver: true });
+        animRef.current.start();
+      });
+    }
+  }, [expression]);
+
+  return (
+    <Animated.View pointerEvents="none" style={{ ...StyleSheet.absoluteFillObject, opacity }}>
+      {ATMO_BLOBS.map((blob, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            position: 'absolute',
+            width: blob.size,
+            height: blob.size,
+            borderRadius: blob.size / 2,
+            backgroundColor: activeColor,
+            left: blob.left,
+            top: blob.top,
+            transform: [{ translateX: blobOffsets[i]!.x }, { translateY: blobOffsets[i]!.y }],
+          }}
+        />
+      ))}
+    </Animated.View>
+  );
+}
 
 function BackgroundDots({ dotColor }: { dotColor: string }) {
   const dots = useMemo(
@@ -138,8 +211,7 @@ function BackgroundDots({ dotColor }: { dotColor: string }) {
 }
 
 function Page() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? systemTheme.dark : systemTheme.light;
+  const theme = canvasTheme;
 
   const [userKey, setUserKey] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -152,6 +224,14 @@ function Page() {
   const pendingThemeIdRef = useRef<string | null>(null);
 
   const activeTheme = BACKGROUND_THEMES.find(t => t.id === activeThemeId) ?? BACKGROUND_THEMES[0];
+
+  const dominantExpression = useMemo<Expression | null>(() => {
+    if (slimes.length === 0) return null;
+    const counts: Partial<Record<Expression, number>> = {};
+    for (const s of slimes) counts[s.expression] = (counts[s.expression] ?? 0) + 1;
+    return (Object.entries(counts) as [Expression, number][])
+      .reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+  }, [slimes]);
 
   useEffect(() => {
     let mounted = true;
@@ -252,10 +332,14 @@ function Page() {
       const moved = prev.find(s => s.id === id);
       if (!moved) return prev;
 
+      const movedCX = newX + moved.size * 0.41;
+      const movedCY = newY + moved.size * 0.5;
       const target = prev.find(s => {
         if (s.id === id) return false;
-        const dist = Math.sqrt(Math.pow(newX - s.x, 2) + Math.pow(newY - s.y, 2));
-        return dist < (moved.size + s.size) * 0.38;
+        const cx = s.x + s.size * 0.41;
+        const cy = s.y + s.size * 0.5;
+        const dist = Math.sqrt(Math.pow(movedCX - cx, 2) + Math.pow(movedCY - cy, 2));
+        return dist < (moved.size + s.size) * 0.28;
       });
 
       if (target) {
@@ -368,6 +452,7 @@ function Page() {
       <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setShowThemePicker(false); }}>
         <View style={[styles.slimeArea, { backgroundColor: activeTheme.bg }]}>
           <BackgroundDots dotColor={activeTheme.dotColor} />
+          <EmotionAtmosphere expression={dominantExpression} />
           {slimes.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🫧</Text>
@@ -460,10 +545,10 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(0,0,0,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0F0E17',
+    backgroundColor: '#F0EDE6',
   },
   themeDotInner: {
     width: 18,

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    background: #0F0E17;
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    font-family: sans-serif;
+    flex-wrap: wrap;
+    padding: 40px;
+    box-sizing: border-box;
+  }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .label { color: #888; font-size: 13px; }
+  .sublabel { color: #555; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- happy -->
+<div class="item">
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <ellipse cx="55" cy="58" rx="44" ry="42" fill="#7C3AED"/>
+    <ellipse cx="38" cy="49" rx="10" ry="11" fill="white"/>
+    <ellipse cx="72" cy="49" rx="10" ry="11" fill="white"/>
+    <circle cx="40" cy="51" r="6" fill="#1a1a2e"/>
+    <circle cx="74" cy="51" r="6" fill="#1a1a2e"/>
+    <circle cx="43" cy="48" r="2" fill="white"/>
+    <circle cx="77" cy="48" r="2" fill="white"/>
+    <path d="M 36 67 Q 55 83 74 67" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="label">happy</span>
+</div>
+
+<!-- sad -->
+<div class="item">
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <ellipse cx="55" cy="58" rx="44" ry="42" fill="#2563EB"/>
+    <!-- 슬픈 눈썹: 안쪽 올라감 -->
+    <path d="M 28 40 Q 36 34 44 38" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 66 38 Q 74 34 82 40" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="38" cy="50" rx="10" ry="11" fill="white"/>
+    <ellipse cx="72" cy="50" rx="10" ry="11" fill="white"/>
+    <!-- 동공 아래쪽 -->
+    <circle cx="38" cy="53" r="6" fill="#1a1a2e"/>
+    <circle cx="72" cy="53" r="6" fill="#1a1a2e"/>
+    <!-- 눈물 -->
+    <ellipse cx="38" cy="63" rx="3" ry="5" fill="#93C5FD"/>
+    <!-- 뒤집힌 웃음 = 슬픔 -->
+    <path d="M 38 70 Q 55 60 72 70" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="label">sad</span>
+</div>
+
+<!-- fear (두려움) -->
+<div class="item">
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <ellipse cx="55" cy="58" rx="44" ry="42" fill="#4F46E5"/>
+    <!-- 눈썹 높게 올라감 -->
+    <path d="M 26 36 Q 38 28 44 33" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M 66 33 Q 72 28 84 36" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <!-- 눈 크게 -->
+    <ellipse cx="38" cy="50" rx="12" ry="13" fill="white"/>
+    <ellipse cx="72" cy="50" rx="12" ry="13" fill="white"/>
+    <circle cx="38" cy="50" r="5" fill="#1a1a2e"/>
+    <circle cx="72" cy="50" r="5" fill="#1a1a2e"/>
+    <circle cx="41" cy="47" r="2" fill="white"/>
+    <circle cx="75" cy="47" r="2" fill="white"/>
+    <!-- O형 입 -->
+    <ellipse cx="55" cy="73" rx="10" ry="8" fill="#1a1a2e"/>
+    <!-- 땀방울 -->
+    <path d="M 90 38 Q 93 46 89 51" stroke="#93C5FD" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="label">fear (두려움)</span>
+</div>
+
+<!-- timid (소심함) -->
+<div class="item">
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <ellipse cx="55" cy="58" rx="44" ry="42" fill="#6366F1"/>
+    <!-- 눈썹: 살짝 걱정스러운 각도 -->
+    <path d="M 29 40 Q 38 37 44 40" stroke="#1a1a2e" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M 66 40 Q 72 37 81 40" stroke="#1a1a2e" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- 눈 흰자 -->
+    <ellipse cx="38" cy="51" rx="10" ry="10" fill="white"/>
+    <ellipse cx="72" cy="51" rx="10" ry="10" fill="white"/>
+    <!-- 눈꺼풀: 반쯤 덮힌 효과 -->
+    <ellipse cx="38" cy="44" rx="10" ry="7" fill="#6366F1"/>
+    <ellipse cx="72" cy="44" rx="10" ry="7" fill="#6366F1"/>
+    <!-- 동공: 살짝 아래+안쪽 (시선 회피) -->
+    <circle cx="36" cy="53" r="5" fill="#1a1a2e"/>
+    <circle cx="70" cy="53" r="5" fill="#1a1a2e"/>
+    <!-- 볼 홍조 -->
+    <ellipse cx="24" cy="60" rx="9" ry="4" fill="rgba(255,150,150,0.35)"/>
+    <ellipse cx="86" cy="60" rx="9" ry="4" fill="rgba(255,150,150,0.35)"/>
+    <!-- 입: 작고 애매한 선 (닫힌 표정) -->
+    <path d="M 44 70 Q 55 74 66 70" stroke="#1a1a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="label">timid (소심함)?</span>
+  <span class="sublabel">눈 반쯤 감음 + 시선 회피 + 홍조</span>
+</div>
+
+<!-- angry -->
+<div class="item">
+  <svg width="110" height="110" viewBox="0 0 110 110">
+    <ellipse cx="55" cy="58" rx="44" ry="42" fill="#DC2626"/>
+    <!-- 눈썹: 화남 - 안쪽 내려감 -->
+    <path d="M 27 36 Q 38 42 44 37" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 66 37 Q 72 42 83 36" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="38" cy="50" rx="10" ry="10" fill="white"/>
+    <ellipse cx="72" cy="50" rx="10" ry="10" fill="white"/>
+    <circle cx="38" cy="50" r="6" fill="#1a1a2e"/>
+    <circle cx="72" cy="50" r="6" fill="#1a1a2e"/>
+    <path d="M 37 70 Q 55 62 73 70" stroke="#1a1a2e" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="label">angry</span>
+</div>
+
+</body>
+</html>
